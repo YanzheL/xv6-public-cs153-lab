@@ -103,4 +103,5 @@ add_executable(xv6_public_cs153_lab
     vm.c
     wc.c
     x86.h
-    zombie.c)
+    zombie.c
+        lab1_demo.c)
