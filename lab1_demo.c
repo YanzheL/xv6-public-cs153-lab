@@ -17,7 +17,7 @@ lab1_demo(void)
   } else {
     printf(1, "Waiting for pid = %d\n", pid);
     int wtpid = waitpid(pid, &status, 0);
-    printf(1, "Wait finish, pid = %d, wtpid = %d, exit status = %d\n", pid, wtpid, status);
+    printf(1, "Wait finished, pid = %d, wtpid = %d, exit status = %d\n", pid, wtpid, status);
   }
 }
 
