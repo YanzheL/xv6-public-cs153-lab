@@ -13,6 +13,7 @@ worker(int n)
   printf(1, "Test process[%d] begins, n = %d...\n", my_pid, n);
   sleep(100);
   printf(1, "Test process[%d] stopped\n", my_pid);
+  // use n as exit status code
   exit(n);
 }
 
@@ -28,6 +29,8 @@ lab1_demo()
     printf(1, "Process[%d] begin fork loop...\n", getpid());
     int pid = fork();
     if(pid == 0){
+      // use the index of current child process's pid in pids to test whether exit status return properly.
+      // we can get their exit status later when calling waitpid().
       worker(n);
     } else{
       pids[n] = pid;
@@ -41,7 +44,10 @@ lab1_demo()
     int status;
     printf(1, "[%d] is waiting for [%d]...\n", main_pid, pid);
     int wtpid = waitpid(pid, &status, 0);
-    printf(1, "Waited, target pid = %d, return pid = %d, exit status = %d\n", pid, wtpid, status);
+    // if waitpid() works,
+    // target pid should always equal to return pid.
+    // exit status should always equal to current index n.
+    printf(1, "Waited, target pid = %d, return pid = %d, exit status = %d, n = %d\n", pid, wtpid, status, n);
   }
 }
 
