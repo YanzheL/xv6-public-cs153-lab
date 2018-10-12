@@ -47,7 +47,10 @@ lab1_demo()
     // if waitpid() works,
     // target pid should always equal to return pid.
     // exit status should always equal to current index n.
-    printf(1, "Waited, target pid = %d, return pid = %d, exit status = %d, n = %d\n", pid, wtpid, status, n);
+    printf(1,
+            "Waited, target pid = %d, return pid = %d, exit status = %d, n = %d, test passed = %d\n",
+            pid, wtpid, status, n, (pid==wtpid)&&(status==n)
+            );
   }
 }
 
