@@ -32,10 +32,6 @@ lab1_demo()
     }
   }
 
-  //TODO: Why the following codes will execute only once??
-  //TODO: I forked before, so the following code should run on each process independently
-  //TODO: Maybe I misunderstood the fork() mechanism...
-
   printf(1, "[%d] left loop\n", getpid());
   int pid;
   for(n = 0; n < N; ++n){
