@@ -5,6 +5,7 @@
 
 #define N  20
 
+// example child process task
 void
 worker(int n)
 {
@@ -22,6 +23,7 @@ lab1_demo()
   printf(1, "Main process[%d] begin...\n", main_pid);
   int n;
   int pids[N];
+  //Create N test processes, and store their pid in pids.
   for(n = 0; n < N; ++n){
     printf(1, "Process[%d] begin fork loop...\n", getpid());
     int pid = fork();
@@ -31,15 +33,13 @@ lab1_demo()
       pids[n] = pid;
     }
   }
-
+  //After creating these test processes, we begin to wait for each of them by their pid from pids.
   printf(1, "[%d] left loop\n", getpid());
   int pid;
   for(n = 0; n < N; ++n){
     pid = pids[n];
     int status;
     printf(1, "[%d] is waiting for [%d]...\n", main_pid, pid);
-//      wait(0);
-//      printf(1, "Waited");
     int wtpid = waitpid(pid, &status, 0);
     printf(1, "Waited, target pid = %d, return pid = %d, exit status = %d\n", pid, wtpid, status);
   }
