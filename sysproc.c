@@ -21,6 +21,14 @@ sys_exit(void)
 }
 
 int
+sys_chg_priority(void)
+{
+  int p;
+  argint(0,&p);
+  return chg_priority(p);
+}
+
+int
 sys_wait(void)
 {
   return wait();
