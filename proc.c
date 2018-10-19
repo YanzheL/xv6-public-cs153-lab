@@ -335,7 +335,7 @@ candidate(struct spinlock *lk)
   for (p = ptable.proc; p < &ptable.proc[NPROC]; ++p) {
     if (p->state != RUNNABLE)
       continue;
-    if (p->priority > max) {
+    if (p->priority >= max) {
       max = p->priority;
       cd = p;
     }
