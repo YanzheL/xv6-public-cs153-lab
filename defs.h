@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct pheap;
 
 // bio.c
 void            binit(void);
@@ -104,6 +105,7 @@ int             pipewrite(struct pipe*, char*, int);
 //PAGEBREAK: 16
 // proc.c
 int             cpuid(void);
+int             chg_priority(int priority);
 void            exit(void);
 int             fork(void);
 int             growproc(int);
@@ -185,6 +187,14 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+
+// pheap.c
+
+int parent(int i);
+int left(int i);
+int right(int i);
+void hpush(int idx, int key, struct pheap *h);
+int hpop(struct pheap *h);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
