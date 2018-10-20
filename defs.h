@@ -190,9 +190,6 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // pheap.c
 
-int parent(int i);
-int left(int i);
-int right(int i);
 void hpush(int idx, int key, struct pheap *h);
 int hpop(struct pheap *h);
 

@@ -19,7 +19,7 @@ int main(void)
     }
     else{
       chg_priority(100);
-      sleep(500);
+      sleep(200);
       exit();
     }
   }
