@@ -283,11 +283,11 @@ exit(void)
 
 int
 chg_priority(int priority) {
-//  acquire(&ptable.lock);
+  if(priority > MAXPRIORITY)
+    return -1;
   struct proc *curproc = myproc();
   int prev = curproc->priority;
   curproc->priority = priority;
-//  release(&ptable.lock);
   return prev;
 }
 
@@ -301,7 +301,7 @@ wait(void)
   struct proc *curproc = myproc();
   
   acquire(&ptable.lock);
-  ++curproc->priority;
+//  ++curproc->priority;
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
@@ -346,61 +346,6 @@ wait(void)
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 
-//struct proc *
-//candidate(struct spinlock *lk)
-//{
-//  struct proc *p;
-//  struct proc *cd = 0;
-//  int max = 0;
-//  for (p = ptable.proc; p < &ptable.proc[NPROC]; ++p) {
-//    if (p->state != RUNNABLE)
-//      continue;
-//    if (p->priority >= max) {
-//      max = p->priority;
-//      cd = p;
-//    }
-//  }
-////  if (cd == 0)
-////    panic("No runnable process");
-//  return cd;
-//}
-
-//void
-//scheduler(void)
-//{
-//  struct proc *p;
-//  struct cpu *c = mycpu();
-//  c->proc = 0;
-//
-//  for(;;){
-//    // Enable interrupts on this processor.
-//    sti();
-//
-//    // Loop over process table looking for process to run.
-//    acquire(&ptable.lock);
-//    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-//      if(p->state != RUNNABLE)
-//        continue;
-//
-//      // Switch to chosen process.  It is the process's job
-//      // to release ptable.lock and then reacquire it
-//      // before jumping back to us.
-//      c->proc = p;
-//      switchuvm(p);
-//      p->state = RUNNING;
-//
-//      swtch(&(c->scheduler), p->context);
-//      switchkvm();
-//
-//      // Process is done running for now.
-//      // It should have changed its p->state before coming back.
-//      c->proc = 0;
-//    }
-//    release(&ptable.lock);
-//
-//  }
-//}
-
 void
 scheduler(void)
 {
@@ -414,11 +359,9 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    int i;
-    for (i = 0; i < NPROC; ++i) {
-      int idx = hpop(&ppheap);
-      if( idx == -1 )
-        continue;
+    int idx;
+    int lastidx = -1;
+    while((idx=hpop(&ppheap))!=-1) {
 //      procdump();
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -428,7 +371,7 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-      if(p->priority)
+      if(p->priority && lastidx!=idx)
         --p->priority;
 
       swtch(&(c->scheduler), p->context);
@@ -437,6 +380,7 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      lastidx = idx;
     }
 
     release(&ptable.lock);
@@ -528,6 +472,7 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+  ++p->priority;
 
   sched();
 
@@ -603,10 +548,10 @@ procdump(void)
   [RUNNING]   "run   ",
   [ZOMBIE]    "zombie"
   };
-  int i;
+//  int i;
   struct proc *p;
   char *state;
-  uint pc[10];
+//  uint pc[10];
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
@@ -616,12 +561,12 @@ procdump(void)
     else
       state = "???\n";
     cprintf("pid=%d, state=%s, name=%s, idx=%d, priority=%d\n", p->pid, state, p->name,p->pidx,p->priority);
-    if(p->state == SLEEPING){
-      getcallerpcs((uint*)p->context->ebp+2, pc);
-      cprintf("pc=");
-      for(i=0; i<10 && pc[i] != 0; i++)
-        cprintf("%p, ", pc[i]);
-    }
-    cprintf("\n");
+//    if(p->state == SLEEPING){
+//      getcallerpcs((uint*)p->context->ebp+2, pc);
+//      cprintf("pc=");
+//      for(i=0; i<10 && pc[i] != 0; i++)
+//        cprintf("%p, ", pc[i]);
+//    }
+//    cprintf("\n");
   }
 }
