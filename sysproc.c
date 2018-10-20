@@ -20,6 +20,12 @@ sys_exit(void)
   return 0;  // not reached
 }
 
+int sys_procdump(void)
+{
+  procdump();
+  return 0;
+}
+
 int
 sys_chg_priority(void)
 {
