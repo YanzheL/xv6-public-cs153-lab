@@ -2,83 +2,80 @@
 // Created by Trinity on 19/10/2018.
 //
 
-#include "pheap_s.h"
+#include "types.h"
+#include "defs.h"
+#include "param.h"
+//#include "memlayout.h"
+#include "mmu.h"
+//#include "x86.h"
+#include "proc.h"
+#include "spinlock.h"
+#include "pheap.h"
 
+//#define PTR_CAST(ptr, size, retptr) unsigned char (*retptr)[size] = ptr;
 
-#define PTR_CAST(ptr, size, retptr)    \
-unsigned char (*retptr)[size] = ptr;
-
+/*
 #define SWAP(pa, pb, T)                \
 {                                      \
   T tp = *(pa);                        \
   *(pa) = *(pb);                       \
   *(pb) = tp;                          \
 }
+ */
 
+int parent(int i) { return (i - 1) / 2; }
 
-// Inserts a new key 'k'
-void insertKey(struct proc *p, struct pheap_s *h) {
+int left(int i) { return (2 * i + 1); }
+
+int right(int i) { return (2 * i + 2); }
+
+void swap(struct hitem *a, struct hitem *b) {
+  struct hitem tp = *a;
+  *a = *b;
+  *b = tp;
+}
+
+//
+void hpush(int idx, int key, struct pheap *h) {
   if (h->size == NPROC)
-    panic("Overflow: Could not insertKey");
+    return;
   ++h->size;
   int i = h->size - 1;
-  h->indexes[i] = p->pidx;
-  struct proc *procs = h->table->proc;
-  while (i != 0 && procs[h->indexes[parent(i)]].priority < procs[h->indexes[i]].priority) {
-    SWAP(h->indexes + i, h->indexes + parent(i), int)
+  h->nodes[i].idx = idx;
+  h->nodes[i].key = key;
+  while (i != 0 && h->nodes[parent(i)].key < h->nodes[i].key) {
+    swap(h->nodes + i, h->nodes + parent(i));
     i = parent(i);
   }
 }
 
-void MaxHeapify(int idx, struct pheap_s *h) {
-  int l = left(idx);
-  int r = right(idx);
-  int max_idx = idx;
-  struct proc *procs = h->table->proc;
-  if (l < h->size && procs[h->indexes[l]].priority > procs[h->indexes[idx]].priority)
+void MaxHeapify(int idx, struct pheap *h) {
+  int l = left(idx), r = right(idx), max_idx = idx;
+  if (l < h->size && h->nodes[l].key > h->nodes[idx].key)
     max_idx = l;
-  if (r < h->size && procs[h->indexes[r]].priority > procs[h->indexes[max_idx]].priority)
+  if (r < h->size && h->nodes[r].key > h->nodes[max_idx].key)
     max_idx = r;
   if (max_idx != idx) {
-    SWAP(h->indexes + idx, h->indexes + max_idx, int);
+    swap(h->nodes + idx, h->nodes + max_idx);
     MaxHeapify(max_idx, h);
   }
 }
 
 // Return max priority proc index in ptable
 int
-extractMin(struct pheap_s *h) {
+hpop(struct pheap *h) {
   if (h->size <= 0)
-    return 0;
+    return -1;
   if (h->size == 1) {
-    --h->size;
-    return h->indexes[0];
+    h->size--;
+    return h->nodes[0].idx;
   }
 
   // Store the minimum value, and remove it from heap
-  int root = h->indexes[0];
-  h->indexes[0] = h->indexes[h->size - 1];
-  --h->size;
+  int root = h->nodes[0].idx;
+  h->nodes[0].key = h->nodes[h->size - 1].key;
+  h->nodes[0].idx = h->nodes[h->size - 1].idx;
+  h->size--;
   MaxHeapify(0, h);
   return root;
 }
-
-//// Inserts a new key 'k'
-//void insertKey(int k, struct pheap_s *h, void* table, int psize) {
-//  if (h->size == NPROC)
-//    panic("Overflow: Could not insertKey");
-//
-//  PTR_CAST(table,psize,rtable);
-//
-//  // First insert the new key at the end
-//  ++h->size;
-//  int i = h->size - 1;
-//  h->indexes[i] = k;
-//
-//  // Fix the min heap property if it is violated
-//  while (i != 0 && rtable[h->indexes[parent(i)]] < rtable[h->indexes[i]]) {
-//    SWAP(h->indexes+i, h->indexes+parent(i),int)
-//    i = parent(i);
-//  }
-//}
-
