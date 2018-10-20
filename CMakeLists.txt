@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 14)
 
 include_directories(.)
 
-add_executable(xv6_public_cs153_lab
+add_executable(
+    xv6_public_cs153_lab
     asm.h
     bio.c
     bootasm.S
@@ -103,4 +104,6 @@ add_executable(xv6_public_cs153_lab
     vm.c
     wc.c
     x86.h
-    zombie.c)
+    zombie.c
+    lab2_demo.c
+        pheap.c pheap.h)
