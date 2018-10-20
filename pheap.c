@@ -10,26 +10,20 @@
 
 //#define PTR_CAST(ptr, size, retptr) unsigned char (*retptr)[size] = ptr;
 
-/*
+
 #define SWAP(pa, pb, T)                \
 {                                      \
   T tp = *(pa);                        \
   *(pa) = *(pb);                       \
   *(pb) = tp;                          \
 }
- */
+
 
 inline int parent(int i) { return (i - 1) / 2; }
 
 inline int left(int i) { return (2 * i + 1); }
 
 inline int right(int i) { return (2 * i + 2); }
-
-void swap(struct hitem *a, struct hitem *b) {
-  struct hitem tp = *a;
-  *a = *b;
-  *b = tp;
-}
 
 void hpush(int idx, int key, struct pheap *h) {
   if (h->size == NPROC)
@@ -39,7 +33,7 @@ void hpush(int idx, int key, struct pheap *h) {
   h->nodes[i].idx = idx;
   h->nodes[i].key = key;
   while (i != 0 && h->nodes[parent(i)].key < h->nodes[i].key) {
-    swap(h->nodes + i, h->nodes + parent(i));
+    SWAP(h->nodes + i, h->nodes + parent(i),struct hitem);
     i = parent(i);
   }
 }
@@ -51,7 +45,7 @@ void MaxHeapify(int idx, struct pheap *h) {
   if (r < h->size && h->nodes[r].key > h->nodes[max_idx].key)
     max_idx = r;
   if (max_idx != idx) {
-    swap(h->nodes + idx, h->nodes + max_idx);
+    SWAP(h->nodes + idx, h->nodes + max_idx, struct hitem);
     MaxHeapify(max_idx, h);
   }
 }
