@@ -5,11 +5,7 @@
 #include "types.h"
 #include "defs.h"
 #include "param.h"
-//#include "memlayout.h"
 #include "mmu.h"
-//#include "x86.h"
-#include "proc.h"
-#include "spinlock.h"
 #include "pheap.h"
 
 //#define PTR_CAST(ptr, size, retptr) unsigned char (*retptr)[size] = ptr;
@@ -23,11 +19,11 @@
 }
  */
 
-int parent(int i) { return (i - 1) / 2; }
+inline int parent(int i) { return (i - 1) / 2; }
 
-int left(int i) { return (2 * i + 1); }
+inline int left(int i) { return (2 * i + 1); }
 
-int right(int i) { return (2 * i + 2); }
+inline int right(int i) { return (2 * i + 2); }
 
 void swap(struct hitem *a, struct hitem *b) {
   struct hitem tp = *a;
@@ -35,7 +31,6 @@ void swap(struct hitem *a, struct hitem *b) {
   *b = tp;
 }
 
-//
 void hpush(int idx, int key, struct pheap *h) {
   if (h->size == NPROC)
     return;
@@ -67,15 +62,14 @@ hpop(struct pheap *h) {
   if (h->size <= 0)
     return -1;
   if (h->size == 1) {
-    h->size--;
+    --h->size;
     return h->nodes[0].idx;
   }
 
-  // Store the minimum value, and remove it from heap
+  // Store the max value, and remove it from heap
   int root = h->nodes[0].idx;
-  h->nodes[0].key = h->nodes[h->size - 1].key;
-  h->nodes[0].idx = h->nodes[h->size - 1].idx;
-  h->size--;
+  h->nodes[0] = h->nodes[h->size - 1];
+  --h->size;
   MaxHeapify(0, h);
   return root;
 }
