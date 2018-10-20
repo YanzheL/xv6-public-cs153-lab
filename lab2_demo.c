@@ -4,12 +4,13 @@
 
 #include "types.h"
 #include "user.h"
+#include "param.h"
 
-#define N 5
+#define N 256
 
 int main(void)
 {
-  chg_priority(50);
+  chg_priority(30);
   procdump();
   int i;
   for (i = 0; i < N; ++i) {
@@ -18,7 +19,7 @@ int main(void)
 
     }
     else{
-      chg_priority(100);
+//      chg_priority(100);
       sleep(200);
       exit();
     }
