@@ -34,6 +34,17 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct timestat {
+    uint birthticks;
+    uint runticks;
+    uint sleepticks;
+    uint pendingticks;
+    uint lastrun;
+    uint lastsleep;
+    uint lastpending;
+    uint dieticks;
+};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -51,6 +62,7 @@ struct proc {
   char name[16];               // Process name (debugging)
   int priority;
   int pidx;
+  struct timestat tmstat;
 };
 
 // Process memory is laid out contiguously, low addresses first:

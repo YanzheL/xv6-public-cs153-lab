@@ -27,6 +27,7 @@ void
 make_runnable(struct proc* p)
 {
   p->state = RUNNABLE;
+  p->tmstat.lastpending = ticks;
   hpush(p->pidx,p->priority, &ppheap);
 }
 
@@ -97,9 +98,11 @@ allocproc(void)
 
 found:
   p->state = EMBRYO;
+  p->tmstat.birthticks = ticks;
+  p->tmstat.dieticks = p->tmstat.birthticks;
   p->pid = nextpid++;
-  p->pidx = (int)(p-ptable.proc);
-  p->priority = 0;
+  p->pidx = (int)(p - ptable.proc);
+  p->priority = 1;
 
   release(&ptable.lock);
 
@@ -260,6 +263,7 @@ exit(void)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
+  curproc->tmstat.dieticks = ticks;
 
   acquire(&ptable.lock);
 
@@ -367,12 +371,15 @@ scheduler(void)
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       p = &ptable.proc[idx];
+      p->tmstat.pendingticks += ticks - p->tmstat.lastpending;
 //      cprintf("pri=%d\n",p->priority);
       c->proc = p;
+      p->tmstat.lastrun = ticks;
       switchuvm(p);
       p->state = RUNNING;
-      if(p->priority && lastidx!=idx)
+      if(p->priority && lastidx!=idx && 0)
         --p->priority;
+
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -419,7 +426,9 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  make_runnable(myproc());
+  struct proc* p = myproc();
+  p->tmstat.runticks += ticks-p->tmstat.lastrun;
+  make_runnable(p);
 //  myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -469,12 +478,13 @@ sleep(void *chan, struct spinlock *lk)
     acquire(&ptable.lock);  //DOC: sleeplock1
     release(lk);
   }
+  p->tmstat.lastsleep = ticks;
   // Go to sleep.
   p->chan = chan;
+//  ++p->priority;
   p->state = SLEEPING;
-  ++p->priority;
-
   sched();
+  p->tmstat.sleepticks += ticks - p->tmstat.lastsleep;
 
   // Tidy up.
   p->chan = 0;
@@ -560,7 +570,17 @@ procdump(void)
       state = states[p->state];
     else
       state = "???\n";
-    cprintf("pid=%d, state=%s, name=%s, idx=%d, priority=%d\n", p->pid, state, p->name,p->pidx,p->priority);
+    cprintf("pid=%d\tstate=%s\tname=%s\tidx=%d\tpriority=%d\trunticks=%d\tsleepticks=%d\tpendingticks=%d \tlifetime=%d\n",
+            p->pid,
+            state,
+            p->name,
+            p->pidx,
+            p->priority,
+            p->tmstat.runticks,
+            p->tmstat.sleepticks,
+            p->tmstat.pendingticks,
+            p->tmstat.dieticks - p->tmstat.birthticks
+            );
 //    if(p->state == SLEEPING){
 //      getcallerpcs((uint*)p->context->ebp+2, pc);
 //      cprintf("pc=");
