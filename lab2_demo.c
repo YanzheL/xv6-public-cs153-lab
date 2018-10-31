@@ -25,7 +25,7 @@ void worker(int p)
     isprime(i);
   }
   sleep(50);
-  exit();
+  exit(0);
 }
 
 int main(void)
@@ -48,8 +48,8 @@ int main(void)
   sleep(400);
   procdump();
   printf(1,"--------------------   begin waiting for child   --------------------\n");
-  while (wait()!=-1);
+  while (wait(0) != -1);
   printf(1,"--------------------     cleaned all child       --------------------\n");
   procdump();
-  exit();
+  exit(0);
 }

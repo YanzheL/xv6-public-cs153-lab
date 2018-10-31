@@ -63,6 +63,7 @@ struct proc {
   int priority;
   int pidx;
   struct timestat tmstat;
+    int exitstatus;
 };
 
 // Process memory is laid out contiguously, low addresses first:
