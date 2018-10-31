@@ -27,11 +27,11 @@ int sys_procdump(void)
 }
 
 int
-sys_chg_priority(void)
+sys_setpriority(void)
 {
   int p;
   argint(0,&p);
-  return chg_priority(p);
+  return setpriority(p);
 }
 
 int

@@ -106,4 +106,6 @@ add_executable(
     x86.h
     zombie.c
     lab2_demo.c
-        pheap.c pheap.h)
+        pheap.c
+        pheap.h
+)

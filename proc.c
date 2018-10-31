@@ -49,10 +49,10 @@ struct cpu*
 mycpu(void)
 {
   int apicid, i;
-  
+
   if(readeflags()&FL_IF)
     panic("mycpu called with interrupts enabled\n");
-  
+
   apicid = lapicid();
   // APIC IDs are not guaranteed to be contiguous. Maybe we should have
   // a reverse map, or reserve a register to store &cpus[i].
@@ -139,7 +139,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -286,7 +286,7 @@ exit(void)
 }
 
 int
-chg_priority(int priority) {
+setpriority(int priority) {
   if(priority > MAXPRIORITY)
     return -1;
   struct proc *curproc = myproc();
@@ -303,9 +303,9 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
+
   acquire(&ptable.lock);
-//  ++curproc->priority;
+  ++curproc->priority;
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
@@ -377,7 +377,7 @@ scheduler(void)
       p->tmstat.lastrun = ticks;
       switchuvm(p);
       p->state = RUNNING;
-      if(p->priority && lastidx!=idx && 0)
+      if (p->priority && lastidx != idx)
         --p->priority;
 
 
@@ -461,7 +461,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   if(p == 0)
     panic("sleep");
 
@@ -570,7 +570,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???\n";
-    cprintf("pid=%d\tstate=%s\tname=%s\tidx=%d\tpriority=%d\trunticks=%d\tsleepticks=%d\tpendingticks=%d \tlifetime=%d\n",
+    cprintf("pid=%d\tstate=%s\tname=%s\tidx=%d\tpriority=%d\trunticks=%d\tsleepticks=%d\tpendingticks=%d \tturnaround=%d\n",
             p->pid,
             state,
             p->name,

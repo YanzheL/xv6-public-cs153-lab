@@ -19,18 +19,18 @@ int isprime(int n){
 
 void worker(int p)
 {
-  chg_priority(p);
+  setpriority(p);
   int i;
   for (i = 0; i < 10000; ++i) {
     isprime(i);
   }
-  sleep(200);
+  sleep(50);
   exit();
 }
 
 int main(void)
 {
-  chg_priority(15);
+  setpriority(15);
   procdump();
   int i;
   for (i = 0; i < N; ++i) {
@@ -44,8 +44,8 @@ int main(void)
   }
   printf(1,"--------------------       after fork all        --------------------\n");
   procdump();
-  sleep(300);
-  printf(1,"-------------------- now all of child are zombie --------------------\n");
+  printf(1, "-------------------- now all my children are zombie --------------------\n");
+  sleep(400);
   procdump();
   printf(1,"--------------------   begin waiting for child   --------------------\n");
   while (wait()!=-1);

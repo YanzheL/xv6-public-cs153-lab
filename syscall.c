@@ -82,7 +82,7 @@ argstr(int n, char **pp)
   return fetchstr(addr, pp);
 }
 
-extern int sys_chg_priority(void);
+extern int sys_setpriority(void);
 extern int sys_chdir(void);
 extern int sys_close(void);
 extern int sys_dup(void);
@@ -128,7 +128,7 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_chg_priority] sys_chg_priority,
+        [SYS_setpriority] sys_setpriority,
 [SYS_procdump] sys_procdump
 };
 
