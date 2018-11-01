@@ -19,11 +19,11 @@
 }
 
 
-inline int parent(int i) { return (i - 1) / 2; }
+int parent(int i) { return (i - 1) / 2; }
 
-inline int left(int i) { return (2 * i + 1); }
+int left(int i) { return (2 * i + 1); }
 
-inline int right(int i) { return (2 * i + 2); }
+int right(int i) { return (2 * i + 2); }
 
 void hpush(int idx, int key, struct pheap *h) {
   if (h->size == NPROC)
