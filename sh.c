@@ -93,7 +93,7 @@ runcmd(struct cmd *cmd)
     lcmd = (struct listcmd*)cmd;
     if(fork1() == 0)
       runcmd(lcmd->left);
-      wait(0);
+    wait(0);
     runcmd(lcmd->right);
     break;
 
