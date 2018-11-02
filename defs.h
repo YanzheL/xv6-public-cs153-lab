@@ -9,7 +9,13 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
-struct pheap;
+
+#define SWAP(pa, pb, T)                \
+{                                      \
+  T tp = *(pa);                        \
+  *(pa) = *(pb);                       \
+  *(pb) = tp;                          \
+}
 
 // bio.c
 void            binit(void);
@@ -194,10 +200,6 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
-// pheap.c
-
-void hpush(int idx, int *key, struct pheap *h);
-int hpop(struct pheap *h);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

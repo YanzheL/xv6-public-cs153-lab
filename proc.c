@@ -155,7 +155,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->tmstat.birthticks = clock();
-  p->tmstat.dieticks = p->tmstat.birthticks;
   p->pid = nextpid++;
   p->pidx = (int)(p - ptable.proc);
   p->priority = 20;
@@ -319,7 +318,6 @@ exit(int status)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
-  curproc->tmstat.dieticks = clock();
 
   acquire(&ptable.lock);
 
@@ -469,13 +467,16 @@ scheduler(void) {
   for (;;) {
     // Enable interrupts on this processor.
     sti();
-
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     int qid;
     for (qid = NREADYQ - 1; qid >= 0; --qid) {
       struct queue *q = &readylist[qid];
+      // TODO: Maybe starve
       while (q->size > 0) {
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
         acquire(&q->lock);
         p = q->proc[--q->size];
         release(&q->lock);
@@ -486,60 +487,14 @@ scheduler(void) {
         p->state = RUNNING;
         swtch(&(c->scheduler), p->context);
         switchkvm();
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
         c->proc = 0;
       }
     }
     release(&ptable.lock);
   }
 }
-
-//void
-//scheduler(void)
-//{
-//  struct proc *p;
-//  struct cpu *c = mycpu();
-//  c->proc = 0;
-//
-//  for(;;){
-//    // Enable interrupts on this processor.
-//    sti();
-//
-//    // Loop over process table looking for process to run.
-//    acquire(&ptable.lock);
-//    int idx;
-////    int lastidx = -1;
-//    while((idx=hpop(&ppheap))!=-1) {
-////      procdump();
-//      // Switch to chosen process.  It is the process's job
-//      // to release ptable.lock and then reacquire it
-//      // before jumping back to us.
-//      p = &ptable.proc[idx];
-////      struct tmspec tp;
-////      clocksub(clock(),p->tmstat.lastpending,&tp);
-////      clockadd(p->tmstat.pendingticks,tp,&p->tmstat.pendingticks);
-//      p->tmstat.pendingticks += clock() - p->tmstat.lastpending;
-////      cprintf("pri=%d\n",p->priority);
-//      c->proc = p;
-//      p->tmstat.lastrun = clock();
-//      switchuvm(p);
-//      p->state = RUNNING;
-////      if (p->priority)
-////        --p->priority;
-//
-//
-//      swtch(&(c->scheduler), p->context);
-//      switchkvm();
-//
-//      // Process is done running for now.
-//      // It should have changed its p->state before coming back.
-//      c->proc = 0;
-////      lastidx = idx;
-//    }
-//
-//    release(&ptable.lock);
-//
-//  }
-//}
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -701,89 +656,135 @@ kill(int pid)
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
+
 void
 procdump(void)
 {
+  struct proc* p=myproc();
   static char *states[] = {
-  [UNUSED]    "unused",
-  [EMBRYO]    "embryo",
-  [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
+      [UNUSED]    "unused",
+      [EMBRYO]    "embryo",
+      [SLEEPING]  "sleep ",
+      [RUNNABLE]  "runble",
+      [RUNNING]   "run   ",
+      [ZOMBIE]    "zombie"
   };
-//  int i;
-  struct proc *p;
+
   char *state;
-//  uint pc[10];
+  if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+    state = states[p->state];
+  else
+    state = "???\n";
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == UNUSED)
-      continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???\n";
+  uint turnaround = p->tmstat.lastrun-p->tmstat.birthticks;
+  cprintf("pid=%d\t"
+          "state=%s\t"
+          "name=%s\t"
+          "idx=%d\t"
+          "priority=%d\t"
+          "runticks=%u\t"
+          "sleepticks=%u\t"
+          "pendingticks=%u  \t"
+          "turnaround=%u\t"
+          "lastrun=%u\n",
+          p->pid,
+          state,
+          p->name,
+          p->pidx,
+          p->priority,
+          p->tmstat.runticks,
+          p->tmstat.sleepticks,
+          p->tmstat.pendingticks,
+          turnaround,
+          p->tmstat.lastrun
+  );
+}
 
-//    struct tmspec turnaround;
-//    clocksub(p->tmstat.dieticks,p->tmstat.birthticks,&turnaround);
-    uint turnaround = p->tmstat.dieticks-p->tmstat.birthticks;
-
+//void
+//procinfo(void)
+//{
+//  static char *states[] = {
+//  [UNUSED]    "unused",
+//  [EMBRYO]    "embryo",
+//  [SLEEPING]  "sleep ",
+//  [RUNNABLE]  "runble",
+//  [RUNNING]   "run   ",
+//  [ZOMBIE]    "zombie"
+//  };
+////  int i;
+//  struct proc *p;
+//  char *state;
+////  uint pc[10];
+//
+//  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+//    if(p->state == UNUSED)
+//      continue;
+//    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+//      state = states[p->state];
+//    else
+//      state = "???\n";
+//
+////    struct tmspec turnaround;
+////    clocksub(p->tmstat.dieticks,p->tmstat.birthticks,&turnaround);
+//    uint turnaround = p->tmstat.lastrun-p->tmstat.birthticks;
+//
+////    cprintf("pid=%d\t"
+////            "state=%s\t"
+////            "name=%s\t"
+////            "idx=%d\t"
+////            "priority=%d\t"
+////            "runticks=%u.%u\t"
+////            "sleepticks=%u.%u\t"
+////            "pendingticks=%u.%u\t"
+////            "turnaround=%u.%u\t"
+////            "lastrun=%u.%u\t"
+////            "TCCR=%u\n",
+////            p->pid,
+////            state,
+////            p->name,
+////            p->pidx,
+////            p->priority,
+////            p->tmstat.runticks.ticks,
+////            p->tmstat.runticks.nano,
+////            p->tmstat.sleepticks.ticks,
+////            p->tmstat.sleepticks.nano,
+////            p->tmstat.pendingticks.ticks,
+////            p->tmstat.pendingticks.nano,
+////            turnaround.ticks,
+////            turnaround.nano,
+////            p->tmstat.lastrun.ticks,
+////            p->tmstat.lastrun.nano,
+////            lapic[TCCR]
+////            );
 //    cprintf("pid=%d\t"
 //            "state=%s\t"
 //            "name=%s\t"
 //            "idx=%d\t"
 //            "priority=%d\t"
-//            "runticks=%u.%u\t"
-//            "sleepticks=%u.%u\t"
-//            "pendingticks=%u.%u\t"
-//            "turnaround=%u.%u\t"
-//            "lastrun=%u.%u\t"
-//            "TCCR=%u\n",
+//            "runticks=%u\t"
+//            "sleepticks=%u\t"
+//            "pendingticks=%u\t"
+//            "turnaround=%u\t"
+//            "birthticks=%u\t"
+//            "lastrun=%u\n",
 //            p->pid,
 //            state,
 //            p->name,
 //            p->pidx,
 //            p->priority,
-//            p->tmstat.runticks.ticks,
-//            p->tmstat.runticks.nano,
-//            p->tmstat.sleepticks.ticks,
-//            p->tmstat.sleepticks.nano,
-//            p->tmstat.pendingticks.ticks,
-//            p->tmstat.pendingticks.nano,
-//            turnaround.ticks,
-//            turnaround.nano,
-//            p->tmstat.lastrun.ticks,
-//            p->tmstat.lastrun.nano,
-//            lapic[TCCR]
-//            );
-    cprintf("pid=%d\t"
-            "state=%s\t"
-            "name=%s\t"
-            "idx=%d\t"
-            "priority=%d\t"
-            "runticks=%u\t"
-            "sleepticks=%u\t"
-            "pendingticks=%u\t"
-            "turnaround=%u\t"
-            "lastrun=%u\n",
-            p->pid,
-            state,
-            p->name,
-            p->pidx,
-            p->priority,
-            p->tmstat.runticks,
-            p->tmstat.sleepticks,
-            p->tmstat.pendingticks,
-            turnaround,
-            p->tmstat.lastrun
-    );
-//    if(p->state == SLEEPING){
-//      getcallerpcs((uint*)p->context->ebp+2, pc);
-//      cprintf("pc=");
-//      for(i=0; i<10 && pc[i] != 0; i++)
-//        cprintf("%p, ", pc[i]);
-//    }
-//    cprintf("\n");
-  }
-}
+//            p->tmstat.runticks,
+//            p->tmstat.sleepticks,
+//            p->tmstat.pendingticks,
+//            turnaround,
+//            p->tmstat.birthticks,
+//            p->tmstat.lastrun
+//    );
+////    if(p->state == SLEEPING){
+////      getcallerpcs((uint*)p->context->ebp+2, pc);
+////      cprintf("pc=");
+////      for(i=0; i<10 && pc[i] != 0; i++)
+////        cprintf("%p, ", pc[i]);
+////    }
+////    cprintf("\n");
+//  }
+//}

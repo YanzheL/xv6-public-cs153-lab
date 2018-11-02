@@ -108,6 +108,4 @@ add_executable(
         lab1_demo.c
         zombie.c
     lab2_demo.c
-        pheap.c
-        pheap.h
         lab1.c)

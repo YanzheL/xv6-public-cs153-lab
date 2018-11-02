@@ -58,8 +58,13 @@ struct timestat {
     uint lastrun;
     uint lastsleep;
     uint lastpending;
-    uint dieticks;
 };
+
+//struct donation {
+//    struct proc *donator;
+//    int priority;
+//    struct donation *next;
+//};
 
 // Per-process state
 struct proc {
