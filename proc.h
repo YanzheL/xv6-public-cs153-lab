@@ -34,6 +34,22 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+//struct tmspec {
+//    uint ticks;
+//    uint nano;
+//};
+
+//struct timestat {
+//    struct tmspec birthticks;
+//    struct tmspec runticks;
+//    struct tmspec sleepticks;
+//    struct tmspec pendingticks;
+//    struct tmspec lastrun;
+//    struct tmspec lastsleep;
+//    struct tmspec lastpending;
+//    struct tmspec dieticks;
+//};
+
 struct timestat {
     uint birthticks;
     uint runticks;
@@ -63,7 +79,7 @@ struct proc {
   int priority;
   int pidx;
   struct timestat tmstat;
-    int exitstatus;
+  int exitstatus;
 };
 
 // Process memory is laid out contiguously, low addresses first:
