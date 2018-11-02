@@ -19,33 +19,42 @@
 }
 
 
-inline int parent(int i) { return (i - 1) / 2; }
+int parent(int i) { return (i - 1) / 2; }
 
-inline int left(int i) { return (2 * i + 1); }
+int left(int i) { return (2 * i + 1); }
 
-inline int right(int i) { return (2 * i + 2); }
+int right(int i) { return (2 * i + 2); }
 
-void hpush(int idx, int key, struct pheap *h) {
+void increaseall(struct pheap *h) {
+  int i;
+//  for (i = 1; i < h->size; ++i) {
+  if (h->size)
+    *(h->nodes[h->size - 1].key) += 1;
+//  }
+}
+
+void hpush(int idx, int *key, struct pheap *h) {
   if (h->size == NPROC)
     return;
+//  increaseall(h);
   ++h->size;
   int i = h->size - 1;
   h->nodes[i].idx = idx;
   h->nodes[i].key = key;
-  while (i != 0 && h->nodes[parent(i)].key < h->nodes[i].key) {
-    SWAP(h->nodes + i, h->nodes + parent(i),struct hitem);
+  while (i != 0 && *(h->nodes[parent(i)].key) < *(h->nodes[i].key)) {
+    SWAP(h->nodes + i, h->nodes + parent(i), struct hitem);
     i = parent(i);
   }
 }
 
-void MaxHeapify(int idx, struct pheap *h) {
-  int l = left(idx), r = right(idx), max_idx = idx;
-  if (l < h->size && h->nodes[l].key > h->nodes[idx].key)
+void MaxHeapify(int root, struct pheap *h) {
+  int l = left(root), r = right(root), max_idx = root;
+  if (l < h->size && *(h->nodes[l].key) > *(h->nodes[root].key))
     max_idx = l;
-  if (r < h->size && h->nodes[r].key > h->nodes[max_idx].key)
+  if (r < h->size && *(h->nodes[r].key) > *(h->nodes[max_idx].key))
     max_idx = r;
-  if (max_idx != idx) {
-    SWAP(h->nodes + idx, h->nodes + max_idx, struct hitem);
+  if (max_idx != root) {
+    SWAP(h->nodes + root, h->nodes + max_idx, struct hitem);
     MaxHeapify(max_idx, h);
   }
 }
