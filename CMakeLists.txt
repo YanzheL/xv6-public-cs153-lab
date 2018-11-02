@@ -105,9 +105,8 @@ add_executable(
     wc.c
     x86.h
     zombie.c
-        lab1_demo.c
-        zombie.c
+    lab1_demo.c
+    zombie.c
     lab2_demo.c
-        pheap.c
-        pheap.h
-        lab1.c)
+    lab1.c
+)

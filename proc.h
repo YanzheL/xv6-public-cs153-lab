@@ -34,15 +34,53 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+//struct tmspec {
+//    uint ticks;
+//    uint nano;
+//};
+
+//struct timestat {
+//    struct tmspec birthticks;
+//    struct tmspec runticks;
+//    struct tmspec sleepticks;
+//    struct tmspec pendingticks;
+//    struct tmspec lastrun;
+//    struct tmspec lastsleep;
+//    struct tmspec lastpending;
+//    struct tmspec dieticks;
+//};
+
 struct timestat {
     uint birthticks;
     uint runticks;
     uint sleepticks;
     uint pendingticks;
+    uint beginrun;
     uint lastrun;
-    uint lastsleep;
-    uint lastpending;
+    uint beginsleep;
+    uint beginpending;
     uint dieticks;
+};
+
+//struct donator {
+//    struct proc* p;
+//    int priority;
+//    struct donator* next;
+//};
+//
+//struct donation {
+//    struct donator *donator;
+//    int total;
+//};
+
+struct donator {
+    struct proc *p;
+    int priority;
+};
+
+struct donation {
+    struct donator donators[MAXDONATION];
+    int total;
 };
 
 // Per-process state
@@ -63,7 +101,10 @@ struct proc {
   int priority;
   int pidx;
   struct timestat tmstat;
-    int exitstatus;
+  int exitstatus;
+  struct donation donations;
+  int vruntime;
+  int delta_exec_weighted;
 };
 
 // Process memory is laid out contiguously, low addresses first:

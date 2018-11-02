@@ -11,6 +11,13 @@ struct stat;
 struct superblock;
 struct pheap;
 
+#define SWAP(pa, pb, T)                \
+{                                      \
+  T tp = *(pa);                        \
+  *(pa) = *(pb);                       \
+  *(pb) = tp;                          \
+}
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -106,9 +113,13 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 int             cpuid(void);
 
-int setpriority(int priority);
+int             donate(int pid);
 
-void exit(int status);
+int             undonate(int pid);
+int             setpriority(int priority);
+uint            clock();
+//struct tmspec   clock();
+void            exit(int status);
 int             fork(void);
 int             growproc(int);
 int             kill(int);
@@ -116,15 +127,17 @@ struct cpu*     mycpu(void);
 struct proc*    myproc();
 void            pinit(void);
 void            procdump(void);
+
+int             procinfo(int pid);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 
-int wait(int *status);
+int             wait(int *status);
 
-int waitpid(int pid, int *status, int options);
+int             waitpid(int pid, int *status, int options);
 void            wakeup(void*);
 void            yield(void);
 
@@ -170,7 +183,7 @@ void            timerinit(void);
 void            idtinit(void);
 extern uint     ticks;
 void            tvinit(void);
-extern struct spinlock tickslock;
+extern struct   spinlock tickslock;
 
 // uart.c
 void            uartinit(void);
@@ -194,8 +207,7 @@ int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
 // pheap.c
-
-void hpush(int idx, int key, struct pheap *h);
+void hpush(int idx, int *key, struct pheap *h);
 int hpop(struct pheap *h);
 
 // number of elements in fixed-size array

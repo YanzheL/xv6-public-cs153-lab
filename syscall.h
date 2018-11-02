@@ -23,3 +23,6 @@
 #define SYS_waitpid  22
 #define SYS_setpriority 23
 #define SYS_procdump 24
+#define SYS_procinfo 25
+#define SYS_donate 26
+#define SYS_undonate 27
