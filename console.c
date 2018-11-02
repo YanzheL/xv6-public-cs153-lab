@@ -48,6 +48,31 @@ printint(int xx, int base, int sign)
   while(--i >= 0)
     consputc(buf[i]);
 }
+
+static void
+printlong(int xx, long base, int sign)
+{
+  static char digits[] = "0123456789abcdef";
+  char buf[32];
+  int i;
+  unsigned long x;
+
+  if(sign && (sign = xx < 0))
+    x = -xx;
+  else
+    x = xx;
+
+  i = 0;
+  do{
+    buf[i++] = digits[x % base];
+  }while((x /= base) != 0);
+
+  if(sign)
+    buf[i++] = '-';
+
+  while(--i >= 0)
+    consputc(buf[i]);
+}
 //PAGEBREAK: 50
 
 // Print to the console. only understands %d, %x, %p, %s.
@@ -77,6 +102,12 @@ cprintf(char *fmt, ...)
     switch(c){
     case 'd':
       printint(*argp++, 10, 1);
+      break;
+    case 'u':
+      printint(*argp++, 10, 0);
+      break;
+    case 'l':
+      printlong(*argp++, 10, 1);
       break;
     case 'x':
     case 'p':
