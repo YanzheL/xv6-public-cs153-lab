@@ -7,7 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "pheap.h"
-
+#define TCCR    (0x0390/4)   // Timer Current Count
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -23,12 +23,43 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+uint clock(){
+  return ticks;
+}
+
+//struct tmspec clock(){
+//  struct tmspec tm;
+//  tm.ticks = ticks;
+//  tm.nano = lapic[TCCR];
+//  return tm;
+//}
+
+//void clockadd(struct tmspec t1, struct tmspec t2, struct tmspec *dst) {
+//  struct tmspec tp = *dst;
+//  tp.ticks = t1.ticks + t2.ticks;
+//  uint nano = t1.nano + t2.nano;
+//  tp.nano = nano % 10000000;
+//  tp.ticks += nano / 10000000;
+//  *dst = tp;
+//}
+//
+//void clocksub(struct tmspec t1, struct tmspec t2, struct tmspec *dst) {
+//  struct tmspec tp = *dst;
+//  tp.ticks = t1.ticks - t2.ticks;
+//  uint nano = t1.nano - t2.nano;
+//  uint sign = nano < 0;
+//  tp.nano = nano + sign * 10000000;
+//  tp.ticks -= sign;
+//  *dst = tp;
+//}
+
+
 void
 make_runnable(struct proc* p)
 {
   p->state = RUNNABLE;
-  p->tmstat.lastpending = ticks;
-  hpush(p->pidx,p->priority, &ppheap);
+  p->tmstat.lastpending = clock();
+  hpush(p->pidx,&p->priority, &ppheap);
 }
 
 void
@@ -98,7 +129,7 @@ allocproc(void)
 
 found:
   p->state = EMBRYO;
-  p->tmstat.birthticks = ticks;
+  p->tmstat.birthticks = clock();
   p->tmstat.dieticks = p->tmstat.birthticks;
   p->pid = nextpid++;
   p->pidx = (int)(p - ptable.proc);
@@ -263,7 +294,7 @@ exit(int status)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
-  curproc->tmstat.dieticks = ticks;
+  curproc->tmstat.dieticks = clock();
 
   acquire(&ptable.lock);
 
@@ -289,7 +320,7 @@ exit(int status)
 
 int
 setpriority(int priority) {
-  if(priority > MAXPRIORITY)
+  if(priority >= MAXPRIORITY)
     return -1;
   struct proc *curproc = myproc();
   int prev = curproc->priority;
@@ -409,20 +440,23 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     int idx;
-    int lastidx = -1;
+//    int lastidx = -1;
     while((idx=hpop(&ppheap))!=-1) {
 //      procdump();
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       p = &ptable.proc[idx];
-      p->tmstat.pendingticks += ticks - p->tmstat.lastpending;
+//      struct tmspec tp;
+//      clocksub(clock(),p->tmstat.lastpending,&tp);
+//      clockadd(p->tmstat.pendingticks,tp,&p->tmstat.pendingticks);
+      p->tmstat.pendingticks += clock() - p->tmstat.lastpending;
 //      cprintf("pri=%d\n",p->priority);
       c->proc = p;
-      p->tmstat.lastrun = ticks;
+      p->tmstat.lastrun = clock();
       switchuvm(p);
       p->state = RUNNING;
-      if (p->priority && lastidx != idx)
+      if (p->priority)
         --p->priority;
 
 
@@ -432,7 +466,7 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-      lastidx = idx;
+//      lastidx = idx;
     }
 
     release(&ptable.lock);
@@ -472,7 +506,10 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   struct proc* p = myproc();
-  p->tmstat.runticks += ticks-p->tmstat.lastrun;
+//  struct tmspec tp;
+//  clocksub(clock(),p->tmstat.lastrun,&tp);
+//  clockadd(p->tmstat.runticks,tp,&p->tmstat.runticks);
+  p->tmstat.runticks += clock() - p->tmstat.lastrun;
   make_runnable(p);
 //  myproc()->state = RUNNABLE;
   sched();
@@ -523,13 +560,18 @@ sleep(void *chan, struct spinlock *lk)
     acquire(&ptable.lock);  //DOC: sleeplock1
     release(lk);
   }
-  p->tmstat.lastsleep = ticks;
+  p->tmstat.lastsleep = clock();
   // Go to sleep.
   p->chan = chan;
 //  ++p->priority;
   p->state = SLEEPING;
   sched();
-  p->tmstat.sleepticks += ticks - p->tmstat.lastsleep;
+
+//  struct tmspec tp;
+//  clocksub(clock(),p->tmstat.lastsleep,&tp);
+//  clockadd(p->tmstat.sleepticks,tp,&p->tmstat.sleepticks);
+
+  p->tmstat.sleepticks += clock() - p->tmstat.lastsleep;
 
   // Tidy up.
   p->chan = 0;
@@ -615,7 +657,49 @@ procdump(void)
       state = states[p->state];
     else
       state = "???\n";
-    cprintf("pid=%d\tstate=%s\tname=%s\tidx=%d\tpriority=%d\trunticks=%d\tsleepticks=%d\tpendingticks=%d \tturnaround=%d\n",
+
+//    struct tmspec turnaround;
+//    clocksub(p->tmstat.dieticks,p->tmstat.birthticks,&turnaround);
+    uint turnaround = p->tmstat.dieticks-p->tmstat.birthticks;
+
+//    cprintf("pid=%d\t"
+//            "state=%s\t"
+//            "name=%s\t"
+//            "idx=%d\t"
+//            "priority=%d\t"
+//            "runticks=%u.%u\t"
+//            "sleepticks=%u.%u\t"
+//            "pendingticks=%u.%u\t"
+//            "turnaround=%u.%u\t"
+//            "lastrun=%u.%u\t"
+//            "TCCR=%u\n",
+//            p->pid,
+//            state,
+//            p->name,
+//            p->pidx,
+//            p->priority,
+//            p->tmstat.runticks.ticks,
+//            p->tmstat.runticks.nano,
+//            p->tmstat.sleepticks.ticks,
+//            p->tmstat.sleepticks.nano,
+//            p->tmstat.pendingticks.ticks,
+//            p->tmstat.pendingticks.nano,
+//            turnaround.ticks,
+//            turnaround.nano,
+//            p->tmstat.lastrun.ticks,
+//            p->tmstat.lastrun.nano,
+//            lapic[TCCR]
+//            );
+    cprintf("pid=%d\t"
+            "state=%s\t"
+            "name=%s\t"
+            "idx=%d\t"
+            "priority=%d\t"
+            "runticks=%u\t"
+            "sleepticks=%u\t"
+            "pendingticks=%u\t"
+            "turnaround=%u\t"
+            "lastrun=%u\n",
             p->pid,
             state,
             p->name,
@@ -624,8 +708,9 @@ procdump(void)
             p->tmstat.runticks,
             p->tmstat.sleepticks,
             p->tmstat.pendingticks,
-            p->tmstat.dieticks - p->tmstat.birthticks
-            );
+            turnaround,
+            p->tmstat.lastrun
+    );
 //    if(p->state == SLEEPING){
 //      getcallerpcs((uint*)p->context->ebp+2, pc);
 //      cprintf("pc=");
