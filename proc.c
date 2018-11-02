@@ -17,7 +17,7 @@ struct {
 // 2: 32 ~ 47
 // 3: 48 ~ 63
 struct queue{
-    struct spinlock lock;
+//    struct spinlock lock;
     struct proc* proc[NPROC];
     int size;
 } readylist[NREADYQ];
@@ -61,12 +61,11 @@ uint clock(){
 //  *dst = tp;
 //}
 
-void sort(struct proc** arr, int size){
-  int i,j;
+void sort(struct proc **arr, int size) {
+  int i, j;
   for (i = 0; i < size; ++i) {
-    for (j = 0; j < size-1; ++j) {
-      if(arr[j]->priority>arr[j+1]->priority)
-        SWAP(&arr[j],&arr[j+1],struct proc*)
+    for (j = 0; j < size - 1; ++j) {
+      if (arr[j]->priority < arr[j + 1]->priority) SWAP(&arr[j], &arr[j + 1], struct proc*)
     }
   }
 }
@@ -77,20 +76,19 @@ make_runnable(struct proc *p) {
   p->tmstat.lastpending = clock();
   int qid = p->priority / (MAXPRIORITY/NREADYQ);
   struct queue *q = &readylist[qid];
-  acquire(&q->lock);
+//  acquire(&q->lock);
   q->proc[q->size++] = p;
   sort(q->proc,q->size);
-  release(&q->lock);
+//  release(&q->lock);
 }
 
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-  int qid;
-  for (qid = 0; qid < NREADYQ; ++qid) {
-    initlock(&readylist[qid].lock, "readylist");
-  }
+//  int qid;
+//  for (qid = 0; qid < NREADYQ; ++qid)
+//    initlock(&readylist[qid].lock, "readylist");
 }
 
 // Must be called with interrupts disabled
@@ -343,11 +341,14 @@ exit(int status)
 
 int
 setpriority(int priority) {
-  if(priority >= MAXPRIORITY)
+  if (priority >= MAXPRIORITY)
     return -1;
+  acquire(&ptable.lock);
   struct proc *curproc = myproc();
   int prev = curproc->priority;
   curproc->priority = priority;
+  release(&ptable.lock);
+  yield();
   return prev;
 }
 
@@ -470,16 +471,16 @@ scheduler(void) {
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     int qid;
-    for (qid = NREADYQ - 1; qid >= 0; --qid) {
+    for (qid = 0; qid <NREADYQ; ++qid) {
       struct queue *q = &readylist[qid];
       // TODO: Maybe starve
       while (q->size > 0) {
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
-        acquire(&q->lock);
+//        acquire(&q->lock);
         p = q->proc[--q->size];
-        release(&q->lock);
+//        release(&q->lock);
         p->tmstat.pendingticks += clock() - p->tmstat.lastpending;
         c->proc = p;
         p->tmstat.lastrun = clock();
