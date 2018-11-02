@@ -6,14 +6,22 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "pheap.h"
 #define TCCR    (0x0390/4)   // Timer Current Count
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
 
-struct pheap ppheap;
+// 0: 0 ~ 15
+// 1: 16 ~ 31
+// 2: 32 ~ 47
+// 3: 48 ~ 63
+struct queue{
+    struct spinlock lock;
+    struct proc* proc[NPROC];
+    int size;
+} readylist[NREADYQ];
+
 
 static struct proc *initproc;
 
@@ -53,19 +61,36 @@ uint clock(){
 //  *dst = tp;
 //}
 
+void sort(struct proc** arr, int size){
+  int i,j;
+  for (i = 0; i < size; ++i) {
+    for (j = 0; j < size-1; ++j) {
+      if(arr[j]->priority>arr[j+1]->priority)
+        SWAP(&arr[j],&arr[j+1],struct proc*)
+    }
+  }
+}
 
 void
-make_runnable(struct proc* p)
-{
+make_runnable(struct proc *p) {
   p->state = RUNNABLE;
   p->tmstat.lastpending = clock();
-  hpush(p->pidx,&p->priority, &ppheap);
+  int qid = p->priority / (MAXPRIORITY/NREADYQ);
+  struct queue *q = &readylist[qid];
+  acquire(&q->lock);
+  q->proc[q->size++] = p;
+  sort(q->proc,q->size);
+  release(&q->lock);
 }
 
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  int qid;
+  for (qid = 0; qid < NREADYQ; ++qid) {
+    initlock(&readylist[qid].lock, "readylist");
+  }
 }
 
 // Must be called with interrupts disabled
@@ -338,7 +363,6 @@ wait(int *status)
   struct proc *curproc = myproc();
 
   acquire(&ptable.lock);
-  ++curproc->priority;
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
@@ -375,6 +399,16 @@ wait(int *status)
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+
+int
+donate(int pid, int priority){
+  struct proc *p;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->pid != pid)
+      continue;
+
   }
 }
 
@@ -427,52 +461,85 @@ waitpid(int pid, int *status, int options) {
 //      via swtch back to the scheduler.
 
 void
-scheduler(void)
-{
+scheduler(void) {
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
 
-  for(;;){
+  for (;;) {
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    int idx;
-//    int lastidx = -1;
-    while((idx=hpop(&ppheap))!=-1) {
-//      procdump();
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      p = &ptable.proc[idx];
-//      struct tmspec tp;
-//      clocksub(clock(),p->tmstat.lastpending,&tp);
-//      clockadd(p->tmstat.pendingticks,tp,&p->tmstat.pendingticks);
-      p->tmstat.pendingticks += clock() - p->tmstat.lastpending;
-//      cprintf("pri=%d\n",p->priority);
-      c->proc = p;
-      p->tmstat.lastrun = clock();
-      switchuvm(p);
-      p->state = RUNNING;
-      if (p->priority)
-        --p->priority;
-
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-//      lastidx = idx;
+    int qid;
+    for (qid = NREADYQ - 1; qid >= 0; --qid) {
+      struct queue *q = &readylist[qid];
+      while (q->size > 0) {
+        acquire(&q->lock);
+        p = q->proc[--q->size];
+        release(&q->lock);
+        p->tmstat.pendingticks += clock() - p->tmstat.lastpending;
+        c->proc = p;
+        p->tmstat.lastrun = clock();
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+        c->proc = 0;
+      }
     }
-
     release(&ptable.lock);
-
   }
 }
+
+//void
+//scheduler(void)
+//{
+//  struct proc *p;
+//  struct cpu *c = mycpu();
+//  c->proc = 0;
+//
+//  for(;;){
+//    // Enable interrupts on this processor.
+//    sti();
+//
+//    // Loop over process table looking for process to run.
+//    acquire(&ptable.lock);
+//    int idx;
+////    int lastidx = -1;
+//    while((idx=hpop(&ppheap))!=-1) {
+////      procdump();
+//      // Switch to chosen process.  It is the process's job
+//      // to release ptable.lock and then reacquire it
+//      // before jumping back to us.
+//      p = &ptable.proc[idx];
+////      struct tmspec tp;
+////      clocksub(clock(),p->tmstat.lastpending,&tp);
+////      clockadd(p->tmstat.pendingticks,tp,&p->tmstat.pendingticks);
+//      p->tmstat.pendingticks += clock() - p->tmstat.lastpending;
+////      cprintf("pri=%d\n",p->priority);
+//      c->proc = p;
+//      p->tmstat.lastrun = clock();
+//      switchuvm(p);
+//      p->state = RUNNING;
+////      if (p->priority)
+////        --p->priority;
+//
+//
+//      swtch(&(c->scheduler), p->context);
+//      switchkvm();
+//
+//      // Process is done running for now.
+//      // It should have changed its p->state before coming back.
+//      c->proc = 0;
+////      lastidx = idx;
+//    }
+//
+//    release(&ptable.lock);
+//
+//  }
+//}
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
