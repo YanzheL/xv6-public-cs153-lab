@@ -106,9 +106,10 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 int             cpuid(void);
 
-int setpriority(int priority);
-
-void exit(int status);
+int             setpriority(int priority);
+uint            clock();
+//struct tmspec   clock();
+void            exit(int status);
 int             fork(void);
 int             growproc(int);
 int             kill(int);
@@ -195,7 +196,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // pheap.c
 
-void hpush(int idx, int key, struct pheap *h);
+void hpush(int idx, int *key, struct pheap *h);
 int hpop(struct pheap *h);
 
 // number of elements in fixed-size array
