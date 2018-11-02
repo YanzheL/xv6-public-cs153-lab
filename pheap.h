@@ -3,11 +3,11 @@
 //
 
 struct hitem {
-    int key;
+    int *key;
     int idx;
 };
 
 struct pheap {
-    struct hitem nodes[NPROC];
+    struct hitem nodes[NPROC + 1];
     int size; // Current number of elements in max heap
 };
