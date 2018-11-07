@@ -21,7 +21,8 @@ struct queue {
 //    struct spinlock lock;
     struct proc *proc[NPROC];
     int size;
-} readylist[NREADYQ];
+    int min;
+} readylist;
 
 
 static struct proc *initproc;
@@ -55,6 +56,8 @@ state_change(struct proc *p, enum procstate s2) {
   if(!holding(&ptable.lock))
     panic("Unprotected state change");
 
+  p->delta_exec_weighted = 1 + p->priority - p->donations.total;
+
 //  if(p->pid==4||p->pid==21)
 //    cprintf("PID[%d], [%s] -> [%s]\n",p->pid,states[p->state],states[s2]);
 
@@ -74,18 +77,20 @@ state_change(struct proc *p, enum procstate s2) {
       break;
     case RUNNABLE:  // can only goto RUNNING
       p->tmstat.beginrun = curtime;
-      p->tmstat.runticks += curtime - p->tmstat.beginrun;
+//      p->tmstat.runticks += curtime - p->tmstat.beginrun;
       p->tmstat.pendingticks += curtime - p->tmstat.beginpending;
       break;
     case RUNNING:
       p->tmstat.lastrun = curtime;
       p->tmstat.runticks += curtime - p->tmstat.beginrun;
+      p->vruntime += (curtime - p->tmstat.beginrun) * p->delta_exec_weighted;
       switch (s2) {
         case SLEEPING:
           p->tmstat.beginsleep = curtime;
           break;
         case RUNNABLE:
           p->tmstat.beginpending = curtime;
+
           break;
         case ZOMBIE:
           p->tmstat.dieticks = curtime;
@@ -139,28 +144,65 @@ state_change(struct proc *p, enum procstate s2) {
 //  *dst = tp;
 //}
 
-void sort(struct proc **arr, int size) {
-  int i, j;
-  int p1, p2;
-  for (i = 0; i < size; ++i) {
-    for (j = 0; j < size - 1; ++j) {
-      p1 = arr[j]->priority + arr[j]->donations.total;
-      p2 = arr[j + 1]->priority + arr[j + 1]->donations.total;
-      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
-    }
+int
+getter(struct proc *p) {
+  return p->vruntime - readylist.min;
+}
+
+int partition(struct proc **src, int low, int high) {
+  struct proc *pv = src[low];
+  int pivot = getter(pv);
+  while (low < high) {
+    while (low < high && getter(src[high]) <= pivot)--high;
+    src[low] = src[high];
+    while (low < high && getter(src[low]) >= pivot)++low;
+    src[high] = src[low];
+  }
+  src[low] = pv;
+  return low;
+}
+
+void quickSort(struct proc **arr, int low, int high) {
+  if(low < high) {
+    int pi = partition(arr, low, high);
+    quickSort(arr, low, pi - 1);
+    quickSort(arr, pi + 1, high);
   }
 }
+
+void sort(struct proc **arr, int size) {
+  quickSort(arr, 0, size - 1);
+//  for (i = 0; i < size; ++i) {
+//    for (j = 0; j < size - 1; ++j) {
+//      p1 = arr[j]->vruntime - readylist.min;
+//      p2 = arr[j + 1]->vruntime - readylist.min;
+//      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
+//    }
+//  }
+}
+//void sort(struct proc **arr, int size) {
+//  int i, j;
+//  int p1, p2;
+//  for (i = 0; i < size; ++i) {
+//    for (j = 0; j < size - 1; ++j) {
+//      p1 = arr[j]->priority - arr[j]->donations.total;
+//      p2 = arr[j + 1]->priority + arr[j - 1]->donations.total;
+//      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
+//    }
+//  }
+//}
 
 
 void
 make_runnable(struct proc *p) {
 //  p->state = RUNNABLE;
   state_change(p, RUNNABLE);
-//  p->tmstat.beginpending = clock();
-  int qid = p->priority / (MAXPRIORITY / NREADYQ);
-  struct queue *q = &readylist[qid];
+//  int qid = p->priority / (MAXPRIORITY / NREADYQ);
+//  struct queue *q = &readylist[qid];
+  struct queue *q = &readylist;
 //  acquire(&q->lock);
   q->proc[q->size++] = p;
+  q->min = q->size > 1 ? q->proc[0]->vruntime : 0;
   sort(q->proc, q->size);
 //  release(&q->lock);
 }
@@ -168,9 +210,6 @@ make_runnable(struct proc *p) {
 void
 pinit(void) {
   initlock(&ptable.lock, "ptable");
-//  int qid;
-//  for (qid = 0; qid < NREADYQ; ++qid)
-//    initlock(&readylist[qid].lock, "readylist");
 }
 
 // Must be called with interrupts disabled
@@ -517,7 +556,7 @@ wait(int *status) {
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
-        p->priority = 0;
+        p->priority = 20;
         p->killed = 0;
         state_change(p, UNUSED);
 //        p->state = UNUSED;
@@ -611,35 +650,79 @@ scheduler(void) {
     sti();
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    int qid;
-    for (qid = 0; qid < NREADYQ; ++qid) {
-      struct queue *q = &readylist[qid];
-      // TODO: Maybe starve
-      while (q->size > 0) {
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
+    struct queue *q = &readylist;
+    while (readylist.size > 0) {
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
 //        acquire(&q->lock);
-        p = q->proc[--q->size];
+      p = q->proc[--q->size];
+//        --p->dyn_priority;
+//        if(q->size)
+//          ++q->proc[0]->dyn_priority;
 //        release(&q->lock);
 //        p->tmstat.pendingticks += clock() - p->tmstat.beginpending;
-        c->proc = p;
+      c->proc = p;
 //        p->tmstat.beginrun = clock();
-        switchuvm(p);
+      switchuvm(p);
 //        p->state = RUNNING;
-        state_change(p, RUNNING);
-        swtch(&(c->scheduler), p->context);
-        switchkvm();
+      state_change(p, RUNNING);
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
 //        p->tmstat.lastrun = clock();
 //        p->tmstat.runticks += p->tmstat.lastrun - p->tmstat.beginrun;
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
     }
     release(&ptable.lock);
   }
 }
+
+//void
+//scheduler(void) {
+//  struct proc *p;
+//  struct cpu *c = mycpu();
+//  c->proc = 0;
+//
+//  for (;;) {
+//    // Enable interrupts on this processor.
+//    sti();
+//    // Loop over process table looking for process to run.
+//    acquire(&ptable.lock);
+//    int qid;
+//    for (qid = 0; qid < NREADYQ; ++qid) {
+//      struct queue *q = &readylist[qid];
+//      // TODO: Maybe starve
+////      sort(q, q->size);
+//      while (q->size > 0) {
+//        // Switch to chosen process.  It is the process's job
+//        // to release ptable.lock and then reacquire it
+//        // before jumping back to us.
+////        acquire(&q->lock);
+//        p = q->proc[--q->size];
+////        --p->dyn_priority;
+////        if(q->size)
+////          ++q->proc[0]->dyn_priority;
+////        release(&q->lock);
+////        p->tmstat.pendingticks += clock() - p->tmstat.beginpending;
+//        c->proc = p;
+////        p->tmstat.beginrun = clock();
+//        switchuvm(p);
+////        p->state = RUNNING;
+//        state_change(p, RUNNING);
+//        swtch(&(c->scheduler), p->context);
+//        switchkvm();
+////        p->tmstat.lastrun = clock();
+////        p->tmstat.runticks += p->tmstat.lastrun - p->tmstat.beginrun;
+//        // Process is done running for now.
+//        // It should have changed its p->state before coming back.
+//        c->proc = 0;
+//      }
+//    }
+//    release(&ptable.lock);
+//  }
+//}
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -849,6 +932,7 @@ procinfo(int pid) {
           "idx=%d\t"
           "priority=%d\t"
           "donations=%d\t"
+          "vruntime=%d\t"
           "runticks=%u\t"
           "sleepticks=%u\t"
           "pendingticks=%u  \t"
@@ -863,6 +947,7 @@ procinfo(int pid) {
           p->pidx,
           p->priority,
           p->donations.total,
+          p->vruntime,
           p->tmstat.runticks,
           p->tmstat.sleepticks,
           p->tmstat.pendingticks,
