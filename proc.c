@@ -16,11 +16,11 @@ struct queue {
     struct spinlock lock;
     struct proc *proc[NPROC];
     int size;
-    int min;
 } readyq;
 
 #define TCCR    (0x0390/4)   // Timer Current Count
-#define GETPROCKEY(p) p->vruntime - readyq.min
+//#define GETPROCKEY(p) p->vruntime - readyq.min
+#define GETPROCKEY(p) p->vruntime
 
 uint clock() {
 //  return ticks * 100 + (10000000 - lapic[TCCR]) / 100000;
@@ -48,6 +48,18 @@ void qsort(struct proc **arr, int low, int high) {
     int pi = partition(arr, low, high);
     qsort(arr, low, pi - 1);
     qsort(arr, pi + 1, high);
+  }
+}
+
+void sort(struct proc *arr[], int size) {
+  int i, j;
+  int p1, p2;
+  for (i = 0; i < size; ++i) {
+    for (j = 0; j < size - 1; ++j) {
+      p1 = GETPROCKEY(arr[j]);
+      p2 = GETPROCKEY(arr[j + 1]);
+      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
+    }
   }
 }
 
@@ -134,9 +146,22 @@ readyq_push(struct proc *p) {
   struct queue *q = &readyq;
   acquire(&q->lock);
   q->proc[q->size++] = p;
-  q->min = q->size > 1 ? q->proc[0]->vruntime : 0;
-  qsort(q->proc, 0, q->size - 1);
+//  qsort(q->proc, 0, q->size - 1);
+// TODO: qsort failed
+  sort(q->proc, q->size);
   release(&q->lock);
+}
+
+struct proc *readyq_pop() {
+  struct proc *p = 0;
+  acquire(&readyq.lock);
+  if(readyq.size) {
+    p = readyq.proc[readyq.size - 1];
+    readyq.proc[readyq.size - 1] = 0;
+    --readyq.size;
+  }
+  release(&readyq.lock);
+  return p;
 }
 
 void
@@ -486,6 +511,8 @@ wait(int *status) {
         p->name[0] = 0;
         p->priority = 20;
         p->killed = 0;
+        p->vruntime = 0;
+        p->delta_exec_weighted = 0;
         change_state(p, UNUSED);
 //        p->state = UNUSED;
         if(status)
@@ -576,16 +603,15 @@ scheduler(void) {
     // Enable interrupts on this processor.
     sti();
     // Loop over process table looking for process to run.
-
-    struct queue *q = &readyq;
-    while (readyq.size > 0) {
-      acquire(&q->lock);
-      p = q->proc[--q->size];
-      release(&q->lock);
+    acquire(&ptable.lock);
+    while (p = readyq_pop()) {
+//      acquire(&q->lock);
+//      p = q->proc[--q->size];
+//      release(&q->lock);
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      acquire(&ptable.lock);
+
       c->proc = p;
       switchuvm(p);
       change_state(p, RUNNING);
@@ -594,8 +620,9 @@ scheduler(void) {
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-      release(&ptable.lock);
+
     }
+    release(&ptable.lock);
 
   }
 }
