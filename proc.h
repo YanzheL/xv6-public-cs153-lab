@@ -55,9 +55,11 @@ struct timestat {
     uint runticks;
     uint sleepticks;
     uint pendingticks;
+    uint beginrun;
     uint lastrun;
-    uint lastsleep;
-    uint lastpending;
+    uint beginsleep;
+    uint beginpending;
+    uint dieticks;
 };
 
 //struct donation {

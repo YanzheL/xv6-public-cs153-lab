@@ -12,4 +12,4 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       1000  // size of file system in blocks
 #define MAXPRIORITY  64
-#define NREADYQ      4   // MAXPRIORITY % NREADYQ == 0
+#define NREADYQ       1  // MAXPRIORITY % NREADYQ == 0

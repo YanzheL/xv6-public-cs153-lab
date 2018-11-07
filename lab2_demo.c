@@ -6,7 +6,7 @@
 #include "user.h"
 #include "param.h"
 
-#define N 20
+#define N 60
 
 //int isprime(int n) {
 //  int i;
@@ -51,18 +51,25 @@ int main(void) {
   procdump();
   int i;
   for (i = 0; i < N; ++i) {
+    int pr = (MAXPRIORITY - i - 1);
+    pr = pr >= 0 ? pr : -pr;
+    if (pr == 0)
+      pr = 1;
+    pr %= MAXPRIORITY;
     int pid = fork();
     if (pid != 0) {
       continue;
     } else {
 //      worker((N - i) % MAXPRIORITY);
-      worker((MAXPRIORITY-i) % MAXPRIORITY);
+      worker(pr);
 //      worker(50);
     }
   }
 
   printf(1, "--------------------   begin waiting for child   --------------------\n");
   while (wait(0) != -1);
+  wait(0);
+  procdump();
   printf(1, "--------------------     cleaned all child       --------------------\n");
   exit(0);
 }
