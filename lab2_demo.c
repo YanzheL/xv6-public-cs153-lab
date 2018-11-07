@@ -59,7 +59,7 @@ void test_bouns2(void) {
     printf(1, "--------------------   after donate   --------------------\n");
     procinfo(pid);
     sleep(10);
-    reset_donate(pid);
+    undonate(pid);
     printf(1, "--------------------   after reset    --------------------\n");
     procinfo(pid);
     wait(0);

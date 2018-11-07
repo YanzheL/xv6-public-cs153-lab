@@ -112,9 +112,9 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 int             cpuid(void);
 
-int donate(int pid);
+int             donate(int pid);
 
-int reset_donate(int pid);
+int             undonate(int pid);
 int             setpriority(int priority);
 uint            clock();
 //struct tmspec   clock();
@@ -127,16 +127,16 @@ struct proc*    myproc();
 void            pinit(void);
 void            procdump(void);
 
-int procinfo(int pid);
+int             procinfo(int pid);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 
-int wait(int *status);
+int             wait(int *status);
 
-int waitpid(int pid, int *status, int options);
+int             waitpid(int pid, int *status, int options);
 void            wakeup(void*);
 void            yield(void);
 
@@ -182,7 +182,7 @@ void            timerinit(void);
 void            idtinit(void);
 extern uint     ticks;
 void            tvinit(void);
-extern struct spinlock tickslock;
+extern struct   spinlock tickslock;
 
 // uart.c
 void            uartinit(void);
@@ -204,7 +204,6 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
-
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
