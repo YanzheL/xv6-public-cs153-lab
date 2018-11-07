@@ -7,21 +7,49 @@
 #include "proc.h"
 #include "spinlock.h"
 
-#define TCCR    (0x0390/4)   // Timer Current Count
 struct {
     struct spinlock lock;
     struct proc proc[NPROC];
 } ptable;
 
-// 0: 0 ~ 15
-// 1: 16 ~ 31
-// 2: 32 ~ 47
-// 3: 48 ~ 63
 struct queue {
-//    struct spinlock lock;
+    struct spinlock lock;
     struct proc *proc[NPROC];
     int size;
-} readylist[NREADYQ];
+    int min;
+} readyq;
+
+#define TCCR    (0x0390/4)   // Timer Current Count
+#define GETPROCKEY(p) p->vruntime - readyq.min
+
+uint clock() {
+//  return ticks * 100 + (10000000 - lapic[TCCR]) / 100000;
+//  return ticks + ((10000000 - lapic[TCCR]) >= 5000000);
+  return ticks;
+}
+
+// Used in qsort()
+int partition(struct proc **src, int low, int high) {
+  struct proc *pv = src[low];
+  int pivot = GETPROCKEY(pv);
+  while (low < high) {
+    while (low < high && GETPROCKEY(src[high]) <= pivot)--high;
+    src[low] = src[high];
+    while (low < high && GETPROCKEY(src[low]) >= pivot)++low;
+    src[high] = src[low];
+  }
+  src[low] = pv;
+  return low;
+}
+
+// Quick sort over ready queue
+void qsort(struct proc **arr, int low, int high) {
+  if(low < high) {
+    int pi = partition(arr, low, high);
+    qsort(arr, low, pi - 1);
+    qsort(arr, pi + 1, high);
+  }
+}
 
 
 static struct proc *initproc;
@@ -34,14 +62,8 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-uint clock() {
-//  return ticks * 100 + (10000000 - lapic[TCCR]) / 100000;
-  return ticks;
-}
-
 void
-state_change(struct proc *p, enum procstate s2) {
-
+change_state(struct proc *p, enum procstate s2) {
 //  static char *states[] = {
 //      [UNUSED]    "UNUSED  ",
 //      [EMBRYO]    "EMBRYO  ",
@@ -50,36 +72,27 @@ state_change(struct proc *p, enum procstate s2) {
 //      [RUNNING]   "RUNNING ",
 //      [ZOMBIE]    "ZOMBIE  "
 //  };
-
 //  cprintf("[%s] -> [%s]\n",states[p->state],states[s2]);
   if(!holding(&ptable.lock))
     panic("Unprotected state change");
-
-//  if(p->pid==4||p->pid==21)
-//    cprintf("PID[%d], [%s] -> [%s]\n",p->pid,states[p->state],states[s2]);
-
+  p->delta_exec_weighted = 1 + p->priority - p->donations.total;
   uint curtime = clock();
-
-//  UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE;
-
   switch (p->state) {
     case UNUSED:    // can only goto EMBRYO
-      p->tmstat.birthticks = curtime;
       break;
     case EMBRYO:    // can only goto RUNNABLE
-//      if(s2 == RUNNABLE) {
+      p->tmstat.birthticks = curtime;
       p->tmstat.lastrun = curtime;
       p->tmstat.beginpending = curtime;
-//      }
       break;
     case RUNNABLE:  // can only goto RUNNING
       p->tmstat.beginrun = curtime;
-      p->tmstat.runticks += curtime - p->tmstat.beginrun;
       p->tmstat.pendingticks += curtime - p->tmstat.beginpending;
       break;
     case RUNNING:
       p->tmstat.lastrun = curtime;
       p->tmstat.runticks += curtime - p->tmstat.beginrun;
+      p->vruntime += (curtime - p->tmstat.beginrun) * p->delta_exec_weighted;
       switch (s2) {
         case SLEEPING:
           p->tmstat.beginsleep = curtime;
@@ -92,7 +105,7 @@ state_change(struct proc *p, enum procstate s2) {
           break;
         default:
           // Nothing should reach here
-//          cprintf("11111[%s] -> [%s]\n",states[p->state],states[s2]);
+          //  cprintf("11111[%s] -> [%s]\n",states[p->state],states[s2]);
           break;
       }
       break;
@@ -105,7 +118,7 @@ state_change(struct proc *p, enum procstate s2) {
       break;
     default:
       // Nothing should reach here
-//      cprintf("22222[%s] -> [%s]\n",states[p->state],states[s2]);
+      // cprintf("22222[%s] -> [%s]\n",states[p->state],states[s2]);
       break;
   }
 
@@ -113,64 +126,22 @@ state_change(struct proc *p, enum procstate s2) {
 }
 
 
-//struct tmspec clock(){
-//  struct tmspec tm;
-//  tm.ticks = ticks;
-//  tm.nano = lapic[TCCR];
-//  return tm;
-//}
-
-//void clockadd(struct tmspec t1, struct tmspec t2, struct tmspec *dst) {
-//  struct tmspec tp = *dst;
-//  tp.ticks = t1.ticks + t2.ticks;
-//  uint nano = t1.nano + t2.nano;
-//  tp.nano = nano % 10000000;
-//  tp.ticks += nano / 10000000;
-//  *dst = tp;
-//}
-//
-//void clocksub(struct tmspec t1, struct tmspec t2, struct tmspec *dst) {
-//  struct tmspec tp = *dst;
-//  tp.ticks = t1.ticks - t2.ticks;
-//  uint nano = t1.nano - t2.nano;
-//  uint sign = nano < 0;
-//  tp.nano = nano + sign * 10000000;
-//  tp.ticks -= sign;
-//  *dst = tp;
-//}
-
-void sort(struct proc **arr, int size) {
-  int i, j;
-  int p1, p2;
-  for (i = 0; i < size; ++i) {
-    for (j = 0; j < size - 1; ++j) {
-      p1 = arr[j]->priority + arr[j]->donations.total;
-      p2 = arr[j + 1]->priority + arr[j + 1]->donations.total;
-      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
-    }
-  }
-}
-
-
 void
-make_runnable(struct proc *p) {
-//  p->state = RUNNABLE;
-  state_change(p, RUNNABLE);
-//  p->tmstat.beginpending = clock();
-  int qid = p->priority / (MAXPRIORITY / NREADYQ);
-  struct queue *q = &readylist[qid];
-//  acquire(&q->lock);
+readyq_push(struct proc *p) {
+  if(!holding(&ptable.lock))
+    panic("Unprotected readyq_push()");
+  change_state(p, RUNNABLE);
+  struct queue *q = &readyq;
+  acquire(&q->lock);
   q->proc[q->size++] = p;
-  sort(q->proc, q->size);
-//  release(&q->lock);
+  q->min = q->size > 1 ? q->proc[0]->vruntime : 0;
+  qsort(q->proc, 0, q->size - 1);
+  release(&q->lock);
 }
 
 void
 pinit(void) {
   initlock(&ptable.lock, "ptable");
-//  int qid;
-//  for (qid = 0; qid < NREADYQ; ++qid)
-//    initlock(&readylist[qid].lock, "readylist");
 }
 
 // Must be called with interrupts disabled
@@ -232,8 +203,7 @@ allocproc(void) {
 
   found:
 //  p->state = EMBRYO;
-  state_change(p, EMBRYO);
-//  p->tmstat.birthticks = clock();
+  change_state(p, EMBRYO);
   p->pid = nextpid++;
   p->pidx = (int) (p - ptable.proc);
   p->priority = 20;
@@ -243,7 +213,7 @@ allocproc(void) {
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0) {
 //    p->state = UNUSED;
-    state_change(p, UNUSED);
+    change_state(p, UNUSED);
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
@@ -297,7 +267,7 @@ userinit(void) {
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
 
-  make_runnable(p);
+  readyq_push(p);
 //  p->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -342,7 +312,7 @@ fork(void) {
     kfree(np->kstack);
     np->kstack = 0;
 //    np->state = UNUSED;
-    state_change(np, UNUSED);
+    change_state(np, UNUSED);
     return -1;
   }
   np->priority = curproc->priority;
@@ -364,7 +334,7 @@ fork(void) {
 
   acquire(&ptable.lock);
 
-  make_runnable(np);
+  readyq_push(np);
 //  np->state = RUNNABLE;
   release(&ptable.lock);
 
@@ -397,8 +367,6 @@ exit(int status) {
   curproc->cwd = 0;
 
   acquire(&ptable.lock);
-//  curproc->tmstat.lastrun = clock();
-//  curproc->tmstat.runticks += curproc->tmstat.lastrun - curproc->tmstat.beginrun;
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
@@ -415,8 +383,7 @@ exit(int status) {
   }
 
   // Jump into the scheduler, never to return.
-//  curproc->state = ZOMBIE;
-  state_change(curproc, ZOMBIE);
+  change_state(curproc, ZOMBIE);
   sched();
   panic("zombie exit");
 }
@@ -424,7 +391,7 @@ exit(int status) {
 int
 donate(int pid) {
   struct proc *curproc = myproc();
-  struct proc *p, *q;
+  struct proc *p;
   int i, j;
   int ret = -1;
   struct donator *d;
@@ -451,9 +418,9 @@ donate(int pid) {
 }
 
 int
-reset_donate(int pid) {
+undonate(int pid) {
   struct proc *curproc = myproc();
-  struct proc *p, *q;
+  struct proc *p;
   int i, j;
   int ret = -1;
   struct donator *d;
@@ -517,9 +484,9 @@ wait(int *status) {
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
-        p->priority = 0;
+        p->priority = 20;
         p->killed = 0;
-        state_change(p, UNUSED);
+        change_state(p, UNUSED);
 //        p->state = UNUSED;
         if(status)
           *status = p->exitstatus;
@@ -573,8 +540,7 @@ waitpid(int pid, int *status, int options) {
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
-//        p->state = UNUSED;
-        state_change(p, UNUSED);
+        change_state(p, UNUSED);
         if(status)
           *status = p->exitstatus;
         release(&ptable.lock);
@@ -610,34 +576,27 @@ scheduler(void) {
     // Enable interrupts on this processor.
     sti();
     // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    int qid;
-    for (qid = 0; qid < NREADYQ; ++qid) {
-      struct queue *q = &readylist[qid];
-      // TODO: Maybe starve
-      while (q->size > 0) {
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
-//        acquire(&q->lock);
-        p = q->proc[--q->size];
-//        release(&q->lock);
-//        p->tmstat.pendingticks += clock() - p->tmstat.beginpending;
-        c->proc = p;
-//        p->tmstat.beginrun = clock();
-        switchuvm(p);
-//        p->state = RUNNING;
-        state_change(p, RUNNING);
-        swtch(&(c->scheduler), p->context);
-        switchkvm();
-//        p->tmstat.lastrun = clock();
-//        p->tmstat.runticks += p->tmstat.lastrun - p->tmstat.beginrun;
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
+
+    struct queue *q = &readyq;
+    while (readyq.size > 0) {
+      acquire(&q->lock);
+      p = q->proc[--q->size];
+      release(&q->lock);
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      acquire(&ptable.lock);
+      c->proc = p;
+      switchuvm(p);
+      change_state(p, RUNNING);
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+      release(&ptable.lock);
     }
-    release(&ptable.lock);
+
   }
 }
 
@@ -669,14 +628,7 @@ sched(void) {
 void
 yield(void) {
   acquire(&ptable.lock);  //DOC: yieldlock
-  struct proc *p = myproc();
-//  p->tmstat.lastrun = clock();
-//  p->tmstat.runticks += p->tmstat.lastrun - p->tmstat.beginrun;
-//  struct tmspec tp;
-//  clocksub(clock(),p->tmstat.lastrun,&tp);
-//  clockadd(p->tmstat.runticks,tp,&p->tmstat.runticks);
-  make_runnable(p);
-//  myproc()->state = RUNNABLE;
+  readyq_push(myproc());
   sched();
   release(&ptable.lock);
 }
@@ -710,9 +662,6 @@ sleep(void *chan, struct spinlock *lk) {
   if(p == 0)
     panic("sleep");
 
-//  p->tmstat.lastrun = clock();
-//  p->tmstat.runticks += p->tmstat.lastrun - p->tmstat.beginrun;
-
   if(lk == 0)
     panic("sleep without lk");
 
@@ -726,17 +675,11 @@ sleep(void *chan, struct spinlock *lk) {
     acquire(&ptable.lock);  //DOC: sleeplock1
     release(lk);
   }
-//  p->tmstat.beginsleep = clock();
+
   // Go to sleep.
   p->chan = chan;
-//  ++p->priority;
-//  p->state = SLEEPING;
-  state_change(p, SLEEPING);
+  change_state(p, SLEEPING);
   sched();
-
-//  struct tmspec tp;
-//  clocksub(clock(),p->tmstat.lastsleep,&tp);
-//  clockadd(p->tmstat.sleepticks,tp,&p->tmstat.sleepticks);
 
   // Tidy up.
   p->chan = 0;
@@ -756,13 +699,8 @@ wakeup1(void *chan) {
   struct proc *p;
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan) {
-      make_runnable(p);
-//      cprintf("wakeup[%d]\n",p->pid);
-      //      p->state = RUNNABLE;
-//      p->tmstat.sleepticks += clock() - p->tmstat.beginsleep;
-    }
-
+    if(p->state == SLEEPING && p->chan == chan)
+      readyq_push(p);
 }
 
 // Wake up all processes sleeping on chan.
@@ -786,7 +724,7 @@ kill(int pid) {
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
-        make_runnable(p);
+        readyq_push(p);
 //        p->state = RUNNABLE;
       release(&ptable.lock);
       return 0;
@@ -842,17 +780,19 @@ procinfo(int pid) {
   else
     state = "???\n";
 
-  uint turnaround = p->tmstat.lastrun - p->tmstat.birthticks;
+  uint turnaround = p->tmstat.lastrun - p->tmstat.birthticks + 1;
   cprintf("pid=%d\t"
           "state=%s\t"
           "name=%s\t"
           "idx=%d\t"
           "priority=%d\t"
           "donations=%d\t"
+          "vruntime=%d\t"
           "runticks=%u\t"
           "sleepticks=%u\t"
           "pendingticks=%u  \t"
           "turnaround=%u\n"
+//          "err=%d\n"
 //          "beginrun=%d\t"
 //          "lastrun=%u\t"
 //          "beginpending=%u\n"
@@ -863,14 +803,17 @@ procinfo(int pid) {
           p->pidx,
           p->priority,
           p->donations.total,
+          p->vruntime,
           p->tmstat.runticks,
           p->tmstat.sleepticks,
           p->tmstat.pendingticks,
           turnaround
+//          turnaround - p->tmstat.sleepticks - p->tmstat.pendingticks - p->tmstat.runticks
 //          p->tmstat.beginrun,
 //          p->tmstat.lastrun,
 //          p->tmstat.beginpending
   );
+  return pid;
 }
 
 //void

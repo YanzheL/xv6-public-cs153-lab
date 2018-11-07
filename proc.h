@@ -102,7 +102,9 @@ struct proc {
   int pidx;
   struct timestat tmstat;
   int exitstatus;
-    struct donation donations;
+  struct donation donations;
+  int vruntime;
+  int delta_exec_weighted;
 };
 
 // Process memory is laid out contiguously, low addresses first:

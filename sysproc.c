@@ -38,10 +38,10 @@ int sys_donate(void) {
   return donate(pid);
 }
 
-int sys_reset_donate(void) {
+int sys_undonate(void) {
   int pid;
   argint(0, &pid);
-  return reset_donate(pid);
+  return undonate(pid);
 }
 
 int

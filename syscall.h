@@ -25,4 +25,4 @@
 #define SYS_procdump 24
 #define SYS_procinfo 25
 #define SYS_donate 26
-#define SYS_reset_donate 27
+#define SYS_undonate 27

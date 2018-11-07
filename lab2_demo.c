@@ -6,7 +6,7 @@
 #include "user.h"
 #include "param.h"
 
-#define N 60
+#define N 100
 
 //int isprime(int n) {
 //  int i;
@@ -59,7 +59,7 @@ void test_bouns2(void) {
     printf(1, "--------------------   after donate   --------------------\n");
     procinfo(pid);
     sleep(10);
-    reset_donate(pid);
+    undonate(pid);
     printf(1, "--------------------   after reset    --------------------\n");
     procinfo(pid);
     wait(0);
@@ -78,43 +78,37 @@ void b3_worker(int p) {
     }
   }
   sleep(10);
-//  printf(1, "\tchild# %d with priority %d has finished!\n", getpid(), p);
-//  stopped[id] = 1;
   procdump();
   exit(0);
 }
 
 void test_bouns3(void) {
   setpriority(0);
-  procdump();
-  int i;
+  int i, pr;
   for (i = 0; i < N; ++i) {
-    int pr = (MAXPRIORITY - i - 1);
+    pr = (MAXPRIORITY - i * 10);
     pr = pr >= 0 ? pr : -pr;
+    pr %= MAXPRIORITY;
     if(pr == 0)
       pr = 1;
-    pr %= MAXPRIORITY;
     int pid = fork();
     if(pid != 0) {
       continue;
     } else {
-//      b3_worker((N - i) % MAXPRIORITY);
       b3_worker(pr);
-//      b3_worker(50);
     }
   }
 
-  printf(1, "--------------------   begin waiting for child   --------------------\n");
+//  printf(1, "--------------------   begin waiting for child   --------------------\n");
   while (wait(0) != -1);
-  wait(0);
   procdump();
-  printf(1, "--------------------     cleaned all child       --------------------\n");
+//  printf(1, "--------------------     cleaned all child       --------------------\n");
 //  exit(0);
 }
 
 int main(int argc, char *argv[]) {
-
-  if(atoi(argv[1]) == 1);
+  if(atoi(argv[1]) == 1)
+    test_bouns3();
   else if(atoi(argv[1]) == 2)
     test_bouns2();
   else if(atoi(argv[1]) == 3)

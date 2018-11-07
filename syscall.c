@@ -119,7 +119,7 @@ extern int sys_wait(void);
 
 extern int sys_donate(int pid);
 
-extern int sys_reset_donate(int pid);
+extern int sys_undonate(int pid);
 
 extern int sys_waitpid(void);
 
@@ -155,7 +155,7 @@ static int (*syscalls[])(void) = {
     [SYS_mkdir]   sys_mkdir,
     [SYS_close]   sys_close,
     [SYS_donate]  sys_donate,
-    [SYS_reset_donate]  sys_reset_donate,
+    [SYS_undonate]  sys_undonate,
     [SYS_setpriority] sys_setpriority,
     [SYS_procdump] sys_procdump,
     [SYS_procinfo] sys_procinfo
