@@ -10,6 +10,9 @@ int wait(int *status);
 
 int waitpid(int pid, int *status, int options);
 
+int donate(int pid);
+
+int reset_donate(int pid);
 int setpriority(int priority);
 int pipe(int*);
 int write(int, const void*, int);
@@ -30,6 +33,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 void procdump(void);
+
+int procinfo(int pid);
 
 // ulib.c
 int stat(const char*, struct stat*);

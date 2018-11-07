@@ -62,11 +62,26 @@ struct timestat {
     uint dieticks;
 };
 
-//struct donation {
-//    struct proc *donator;
+//struct donator {
+//    struct proc* p;
 //    int priority;
-//    struct donation *next;
+//    struct donator* next;
 //};
+//
+//struct donation {
+//    struct donator *donator;
+//    int total;
+//};
+
+struct donator {
+    struct proc *p;
+    int priority;
+};
+
+struct donation {
+    struct donator donators[MAXDONATION];
+    int total;
+};
 
 // Per-process state
 struct proc {
@@ -87,6 +102,7 @@ struct proc {
   int pidx;
   struct timestat tmstat;
   int exitstatus;
+    struct donation donations;
 };
 
 // Process memory is laid out contiguously, low addresses first:

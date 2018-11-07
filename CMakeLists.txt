@@ -108,4 +108,4 @@ add_executable(
         lab1_demo.c
         zombie.c
     lab2_demo.c
-        lab1.c)
+        lab1.c malloc.c)

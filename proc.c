@@ -42,14 +42,14 @@ uint clock() {
 void
 state_change(struct proc *p, enum procstate s2) {
 
-  static char *states[] = {
-      [UNUSED]    "UNUSED  ",
-      [EMBRYO]    "EMBRYO  ",
-      [SLEEPING]  "SLEEPING",
-      [RUNNABLE]  "RUNNABLE",
-      [RUNNING]   "RUNNING ",
-      [ZOMBIE]    "ZOMBIE  "
-  };
+//  static char *states[] = {
+//      [UNUSED]    "UNUSED  ",
+//      [EMBRYO]    "EMBRYO  ",
+//      [SLEEPING]  "SLEEPING",
+//      [RUNNABLE]  "RUNNABLE",
+//      [RUNNING]   "RUNNING ",
+//      [ZOMBIE]    "ZOMBIE  "
+//  };
 
 //  cprintf("[%s] -> [%s]\n",states[p->state],states[s2]);
   if(!holding(&ptable.lock))
@@ -63,14 +63,16 @@ state_change(struct proc *p, enum procstate s2) {
 //  UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE;
 
   switch (p->state) {
-    case UNUSED:
+    case UNUSED:    // can only goto EMBRYO
       p->tmstat.birthticks = curtime;
       break;
-    case EMBRYO:
-      if(s2 == RUNNABLE)
-        p->tmstat.beginpending = curtime;
+    case EMBRYO:    // can only goto RUNNABLE
+//      if(s2 == RUNNABLE) {
+      p->tmstat.lastrun = curtime;
+      p->tmstat.beginpending = curtime;
+//      }
       break;
-    case RUNNABLE:
+    case RUNNABLE:  // can only goto RUNNING
       p->tmstat.beginrun = curtime;
       p->tmstat.runticks += curtime - p->tmstat.beginrun;
       p->tmstat.pendingticks += curtime - p->tmstat.beginpending;
@@ -99,15 +101,7 @@ state_change(struct proc *p, enum procstate s2) {
       p->tmstat.sleepticks += curtime - p->tmstat.beginsleep;
       break;
     case ZOMBIE:
-      p->tmstat.lastrun = 0;
-      p->tmstat.dieticks = 0;
-      p->tmstat.beginsleep = 0;
-      p->tmstat.sleepticks = 0;
-      p->tmstat.beginpending = 0;
-      p->tmstat.pendingticks = 0;
-      p->tmstat.beginrun = 0;
-      p->tmstat.runticks = 0;
-      p->tmstat.birthticks = 0;
+      memset(&p->tmstat, 0, sizeof(p->tmstat));
       break;
     default:
       // Nothing should reach here
@@ -147,9 +141,12 @@ state_change(struct proc *p, enum procstate s2) {
 
 void sort(struct proc **arr, int size) {
   int i, j;
+  int p1, p2;
   for (i = 0; i < size; ++i) {
     for (j = 0; j < size - 1; ++j) {
-      if(arr[j]->priority < arr[j + 1]->priority) SWAP(&arr[j], &arr[j + 1], struct proc*)
+      p1 = arr[j]->priority + arr[j]->donations.total;
+      p2 = arr[j + 1]->priority + arr[j + 1]->donations.total;
+      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
     }
   }
 }
@@ -422,6 +419,64 @@ exit(int status) {
   state_change(curproc, ZOMBIE);
   sched();
   panic("zombie exit");
+}
+
+int
+donate(int pid) {
+  struct proc *curproc = myproc();
+  struct proc *p, *q;
+  int i, j;
+  int ret = -1;
+  struct donator *d;
+  acquire(&ptable.lock);
+  for (i = 0; i < NPROC; ++i) {
+    p = ptable.proc + i;
+    if(p->pid != pid)
+      continue;
+    for (j = 0; j < MAXDONATION; ++j) {
+      d = p->donations.donators + j;
+      if(d->p == 0) {
+        d->p = curproc;
+        d->priority = curproc->priority;
+        p->donations.total += curproc->priority;
+        ret = p->priority + p->donations.total;
+        goto done;
+      }
+    }
+  }
+  done:
+  release(&ptable.lock);
+  yield();
+  return ret;
+}
+
+int
+reset_donate(int pid) {
+  struct proc *curproc = myproc();
+  struct proc *p, *q;
+  int i, j;
+  int ret = -1;
+  struct donator *d;
+  acquire(&ptable.lock);
+  for (i = 0; i < NPROC; ++i) {
+    p = ptable.proc + i;
+    if(p->pid != pid)
+      continue;
+    for (j = 0; j < MAXDONATION; ++j) {
+      d = p->donations.donators + j;
+      if(d->p != 0 && d->p->pid == curproc->pid) {
+        d->p = 0;
+        p->donations.total -= d->priority;
+        d->priority = 0;
+        ret = p->priority + p->donations.total;
+        goto done;
+      }
+    }
+  }
+  done:
+  release(&ptable.lock);
+  yield();
+  return ret;
 }
 
 int
@@ -748,7 +803,30 @@ kill(int pid) {
 
 void
 procdump(void) {
-  struct proc *p = myproc();
+  procinfo(-1);
+}
+
+int
+procinfo(int pid) {
+  struct proc *p;
+  int i, found = 0;
+  if(pid == -1)
+    p = myproc();
+  else {
+    acquire(&ptable.lock);
+    for (i = 0; i < NPROC; ++i) {
+      p = ptable.proc + i;
+      if(p->pid == pid) {
+        found = 1;
+        break;
+      }
+    }
+    release(&ptable.lock);
+    if(!found)
+      return -1;
+  }
+
+
   static char *states[] = {
       [UNUSED]    "unused",
       [EMBRYO]    "embryo",
@@ -770,25 +848,28 @@ procdump(void) {
           "name=%s\t"
           "idx=%d\t"
           "priority=%d\t"
+          "donations=%d\t"
           "runticks=%u\t"
           "sleepticks=%u\t"
           "pendingticks=%u  \t"
-          "turnaround=%u\t"
-          "beginrun=%d\t"
-          "lastrun=%u\t"
-          "beginpending=%u\n",
+          "turnaround=%u\n"
+//          "beginrun=%d\t"
+//          "lastrun=%u\t"
+//          "beginpending=%u\n"
+      ,
           p->pid,
           state,
           p->name,
           p->pidx,
           p->priority,
+          p->donations.total,
           p->tmstat.runticks,
           p->tmstat.sleepticks,
           p->tmstat.pendingticks,
-          turnaround,
-          p->tmstat.beginrun,
-          p->tmstat.lastrun,
-          p->tmstat.beginpending
+          turnaround
+//          p->tmstat.beginrun,
+//          p->tmstat.lastrun,
+//          p->tmstat.beginpending
   );
 }
 

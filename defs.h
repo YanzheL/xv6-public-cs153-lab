@@ -112,6 +112,9 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 int             cpuid(void);
 
+int donate(int pid);
+
+int reset_donate(int pid);
 int             setpriority(int priority);
 uint            clock();
 //struct tmspec   clock();
@@ -123,6 +126,8 @@ struct cpu*     mycpu(void);
 struct proc*    myproc();
 void            pinit(void);
 void            procdump(void);
+
+int procinfo(int pid);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);

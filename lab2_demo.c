@@ -17,7 +17,7 @@
 //  return 1;
 //}
 //
-//void worker(int p) {
+//void b3_worker(int p) {
 //  setpriority(p);
 //  int i,ct=0;
 //  for (i = 0; i < 10000; ++i) {
@@ -29,9 +29,47 @@
 //  exit(ct);
 //}
 
-//int stopped[N];
+void b2_worker(void) {
+  printf(1, "--------------------   child begin   --------------------\n");
+  procdump();
+  int j, k;
+  for (j = 0; j < 5000; j++) {
+    for (k = 0; k < 10000; k++) {
+      asm("nop");
+    }
+  }
+  printf(1, "--------------------   child end   --------------------\n");
+  procdump();
+  exit(0);
+}
 
-void worker(int p) {
+
+void test_bouns2(void) {
+  printf(1, "--------------------  before fork  --------------------\n");
+  procdump();
+  int j, k;
+  int pid = fork();
+  if(pid) {
+    for (j = 0; j < 1000; j++) {
+      for (k = 0; k < 10000; k++) {
+        asm("nop");
+      }
+    }
+    donate(pid);
+    printf(1, "--------------------   after donate   --------------------\n");
+    procinfo(pid);
+    sleep(10);
+    reset_donate(pid);
+    printf(1, "--------------------   after reset    --------------------\n");
+    procinfo(pid);
+    wait(0);
+  } else {
+    b2_worker();
+  }
+
+}
+
+void b3_worker(int p) {
   setpriority(p);
   int j, k;
   for (j = 0; j < 5000; j++) {
@@ -46,23 +84,23 @@ void worker(int p) {
   exit(0);
 }
 
-int main(void) {
+void test_bouns3(void) {
   setpriority(0);
   procdump();
   int i;
   for (i = 0; i < N; ++i) {
     int pr = (MAXPRIORITY - i - 1);
     pr = pr >= 0 ? pr : -pr;
-    if (pr == 0)
+    if(pr == 0)
       pr = 1;
     pr %= MAXPRIORITY;
     int pid = fork();
-    if (pid != 0) {
+    if(pid != 0) {
       continue;
     } else {
-//      worker((N - i) % MAXPRIORITY);
-      worker(pr);
-//      worker(50);
+//      b3_worker((N - i) % MAXPRIORITY);
+      b3_worker(pr);
+//      b3_worker(50);
     }
   }
 
@@ -71,5 +109,18 @@ int main(void) {
   wait(0);
   procdump();
   printf(1, "--------------------     cleaned all child       --------------------\n");
+//  exit(0);
+}
+
+int main(int argc, char *argv[]) {
+
+  if(atoi(argv[1]) == 1);
+  else if(atoi(argv[1]) == 2)
+    test_bouns2();
+  else if(atoi(argv[1]) == 3)
+    test_bouns3();
+  else
+    printf(1,
+           "\ntype \"lab2_demo n\" to test bouns n\n");
   exit(0);
 }
