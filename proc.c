@@ -70,6 +70,7 @@ void sort(struct proc **arr, int size) {
   }
 }
 
+
 void
 make_runnable(struct proc *p) {
   p->state = RUNNABLE;
