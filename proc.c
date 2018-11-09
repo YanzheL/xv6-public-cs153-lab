@@ -154,6 +154,18 @@ static inline int left(int i) { return (2 * i + 1); }
 
 static inline int right(int i) { return (2 * i + 2); }
 
+void MinHeapify(int root, struct pheap *h) {
+  int l = left(root), r = right(root), min_idx = root;
+  if(l < h->size && *(h->nodes[l].key) < *(h->nodes[root].key))
+    min_idx = l;
+  if(r < h->size && *(h->nodes[r].key) < *(h->nodes[min_idx].key))
+    min_idx = r;
+  if(min_idx != root) {
+    SWAP(h->nodes + root, h->nodes + min_idx, struct hitem);
+    MinHeapify(min_idx, h);
+  }
+}
+
 void hpush(int idx, int *key, struct pheap *h) {
   acquire(&h->lock);
   if(h->size == NPROC)
@@ -166,21 +178,8 @@ void hpush(int idx, int *key, struct pheap *h) {
     SWAP(h->nodes + i, h->nodes + parent(i), struct hitem);
     i = parent(i);
   }
-
   done:
   release(&h->lock);
-}
-
-void MinHeapify(int root, struct pheap *h) {
-  int l = left(root), r = right(root), min_idx = root;
-  if(l < h->size && *(h->nodes[l].key) < *(h->nodes[root].key))
-    min_idx = l;
-  if(r < h->size && *(h->nodes[r].key) < *(h->nodes[min_idx].key))
-    min_idx = r;
-  if(min_idx != root) {
-    SWAP(h->nodes + root, h->nodes + min_idx, struct hitem);
-    MinHeapify(min_idx, h);
-  }
 }
 
 // Return min priority proc index in ptable
@@ -195,7 +194,7 @@ hpop(struct pheap *h) {
     root = h->nodes[0].idx;
     goto done;
   }
-  // Store the max value, and remove it from heap
+  // Store the min value, and remove it from heap
   root = h->nodes[0].idx;
   h->nodes[0] = h->nodes[h->size - 1];
   --h->size;
@@ -214,18 +213,12 @@ readyq_push(struct proc *p) {
   hpush(p->pidx, &p->vruntime, &readyq);
 }
 
-struct proc *readyq_pop() {
+struct proc *
+readyq_pop() {
   struct proc *p = 0;
-//  acquire(&readyq.lock);
-//  if(readyq.size) {
-//    p = readyq.proc[readyq.size - 1];
-//    readyq.proc[readyq.size - 1] = 0;
-//    --readyq.size;
-//  }
   int idx = hpop(&readyq);
   if(idx != -1)
     p = ptable.proc + idx;
-//  release(&readyq.lock);
   return p;
 }
 
