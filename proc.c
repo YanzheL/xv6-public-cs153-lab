@@ -8,14 +8,25 @@
 #include "spinlock.h"
 
 struct {
-    struct spinlock lock;
-    struct proc proc[NPROC];
+  struct spinlock lock;
+  struct proc proc[NPROC];
 } ptable;
 
-struct queue {
-    struct spinlock lock;
-    struct proc *proc[NPROC];
-    int size;
+//struct queue {
+//    struct spinlock lock;
+////    struct proc *proc[NPROC];
+////    int size;
+//} readyq;
+
+struct hitem {
+  int *key;
+  int idx;
+};
+
+struct pheap {
+  struct spinlock lock;
+  struct hitem nodes[NPROC + 1];
+  int size; // Current number of elements in max heap
 } readyq;
 
 #define TCCR    (0x0390/4)   // Timer Current Count
@@ -28,40 +39,40 @@ uint clock() {
   return ticks;
 }
 
-// Used in qsort()
-int partition(struct proc **src, int low, int high) {
-  struct proc *pv = src[low];
-  int pivot = GETPROCKEY(pv);
-  while (low < high) {
-    while (low < high && GETPROCKEY(src[high]) <= pivot)--high;
-    src[low] = src[high];
-    while (low < high && GETPROCKEY(src[low]) >= pivot)++low;
-    src[high] = src[low];
-  }
-  src[low] = pv;
-  return low;
-}
-
-// Quick sort over ready queue
-void qsort(struct proc **arr, int low, int high) {
-  if(low < high) {
-    int pi = partition(arr, low, high);
-    qsort(arr, low, pi - 1);
-    qsort(arr, pi + 1, high);
-  }
-}
-
-void sort(struct proc *arr[], int size) {
-  int i, j;
-  int p1, p2;
-  for (i = 0; i < size; ++i) {
-    for (j = 0; j < size - 1; ++j) {
-      p1 = GETPROCKEY(arr[j]);
-      p2 = GETPROCKEY(arr[j + 1]);
-      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
-    }
-  }
-}
+//// Used in qsort()
+//int partition(struct proc **src, int low, int high) {
+//  struct proc *pv = src[low];
+//  int pivot = GETPROCKEY(pv);
+//  while (low < high) {
+//    while (low < high && GETPROCKEY(src[high]) <= pivot)--high;
+//    src[low] = src[high];
+//    while (low < high && GETPROCKEY(src[low]) >= pivot)++low;
+//    src[high] = src[low];
+//  }
+//  src[low] = pv;
+//  return low;
+//}
+//
+//// Quick sort over ready queue
+//void qsort(struct proc **arr, int low, int high) {
+//  if(low < high) {
+//    int pi = partition(arr, low, high);
+//    qsort(arr, low, pi - 1);
+//    qsort(arr, pi + 1, high);
+//  }
+//}
+//
+//void sort(struct proc *arr[], int size) {
+//  int i, j;
+//  int p1, p2;
+//  for (i = 0; i < size; ++i) {
+//    for (j = 0; j < size - 1; ++j) {
+//      p1 = GETPROCKEY(arr[j]);
+//      p2 = GETPROCKEY(arr[j + 1]);
+//      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
+//    }
+//  }
+//}
 
 
 static struct proc *initproc;
@@ -137,30 +148,84 @@ change_state(struct proc *p, enum procstate s2) {
   p->state = s2;
 }
 
+static inline int parent(int i) { return (i - 1) / 2; }
+
+static inline int left(int i) { return (2 * i + 1); }
+
+static inline int right(int i) { return (2 * i + 2); }
+
+void hpush(int idx, int *key, struct pheap *h) {
+  acquire(&h->lock);
+  if(h->size == NPROC)
+    goto done;
+  ++h->size;
+  int i = h->size - 1;
+  h->nodes[i].idx = idx;
+  h->nodes[i].key = key;
+  while (i != 0 && *(h->nodes[parent(i)].key) > *(h->nodes[i].key)) {
+    SWAP(h->nodes + i, h->nodes + parent(i), struct hitem);
+    i = parent(i);
+  }
+
+  done:
+  release(&h->lock);
+}
+
+void MinHeapify(int root, struct pheap *h) {
+  int l = left(root), r = right(root), min_idx = root;
+  if(l < h->size && *(h->nodes[l].key) < *(h->nodes[root].key))
+    min_idx = l;
+  if(r < h->size && *(h->nodes[r].key) < *(h->nodes[min_idx].key))
+    min_idx = r;
+  if(min_idx != root) {
+    SWAP(h->nodes + root, h->nodes + min_idx, struct hitem);
+    MinHeapify(min_idx, h);
+  }
+}
+
+// Return min priority proc index in ptable
+int
+hpop(struct pheap *h) {
+  int root = -1;
+  acquire(&h->lock);
+  if(h->size <= 0)
+    goto done;
+  if(h->size == 1) {
+    --h->size;
+    root = h->nodes[0].idx;
+    goto done;
+  }
+  // Store the max value, and remove it from heap
+  root = h->nodes[0].idx;
+  h->nodes[0] = h->nodes[h->size - 1];
+  --h->size;
+  MinHeapify(0, h);
+  done:
+  release(&h->lock);
+  return root;
+}
+
 
 void
 readyq_push(struct proc *p) {
   if(!holding(&ptable.lock))
     panic("Unprotected readyq_push()");
   change_state(p, RUNNABLE);
-  struct queue *q = &readyq;
-  acquire(&q->lock);
-  q->proc[q->size++] = p;
-//  qsort(q->proc, 0, q->size - 1);
-// TODO: qsort failed
-  sort(q->proc, q->size);
-  release(&q->lock);
+  hpush(p->pidx, &p->vruntime, &readyq);
 }
 
 struct proc *readyq_pop() {
   struct proc *p = 0;
-  acquire(&readyq.lock);
-  if(readyq.size) {
-    p = readyq.proc[readyq.size - 1];
-    readyq.proc[readyq.size - 1] = 0;
-    --readyq.size;
-  }
-  release(&readyq.lock);
+//  acquire(&readyq.lock);
+//  if(readyq.size) {
+//    p = readyq.proc[readyq.size - 1];
+//    readyq.proc[readyq.size - 1] = 0;
+//    --readyq.size;
+//  }
+  int idx = hpop(&readyq);
+  if(idx != -1)
+    p = ptable.proc + idx;
+//  release(&readyq.lock);
   return p;
 }
 
@@ -611,7 +676,6 @@ scheduler(void) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-
       c->proc = p;
       switchuvm(p);
       change_state(p, RUNNING);
