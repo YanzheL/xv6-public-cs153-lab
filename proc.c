@@ -29,9 +29,9 @@ struct pheap {
   int size; // Current number of elements in max heap
 } readyq;
 
-#define TCCR    (0x0390/4)   // Timer Current Count
+//#define TCCR    (0x0390/4)   // Timer Current Count
 //#define GETPROCKEY(p) p->vruntime - readyq.min
-#define GETPROCKEY(p) p->vruntime
+//#define GETPROCKEY(p) p->vruntime
 
 uint clock() {
 //  return ticks * 100 + (10000000 - lapic[TCCR]) / 100000;
