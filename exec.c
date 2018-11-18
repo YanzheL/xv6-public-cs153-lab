@@ -93,7 +93,7 @@ exec(char *path, char **argv)
   // Commit to the user image.
   oldpgdir = curproc->pgdir;
   curproc->pgdir = pgdir;
-  curproc->htop = sz;
+  curproc->hbtm = sz;
   curproc->ssz = PGSIZE;
   curproc->sz = sz;
   curproc->tf->eip = elf.entry;  // main
