@@ -130,6 +130,7 @@ userinit(void)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
+  p->ssz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
@@ -163,6 +164,8 @@ growproc(int n)
 
   sz = curproc->sz;
   if(n > 0){
+    if(sz + n >= KERNBASE - PGSIZE - curproc->ssz)
+      return -1;
     if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
@@ -190,13 +193,14 @@ fork(void)
   }
 
   // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz, curproc->ssz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
   np->sz = curproc->sz;
+  np->ssz = curproc->ssz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -503,32 +507,96 @@ kill(int pid)
 void
 procdump(void)
 {
-  static char *states[] = {
-  [UNUSED]    "unused",
-  [EMBRYO]    "embryo",
-  [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
-  };
-  int i;
-  struct proc *p;
-  char *state;
-  uint pc[10];
+  procinfo(-1);
+}
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == UNUSED)
-      continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
-    if(p->state == SLEEPING){
-      getcallerpcs((uint*)p->context->ebp+2, pc);
-      for(i=0; i<10 && pc[i] != 0; i++)
-        cprintf(" %p", pc[i]);
+int
+procinfo(int pid)
+{
+  struct proc *p;
+  int i, found = 0;
+  if(pid == -1)
+    p = myproc();
+  else {
+    acquire(&ptable.lock);
+    for (i = 0; i < NPROC; ++i) {
+      p = ptable.proc + i;
+      if(p->pid == pid) {
+        found = 1;
+        break;
+      }
     }
-    cprintf("\n");
+    release(&ptable.lock);
+    if(!found)
+      return -1;
   }
+
+  static char *states[] = {
+      [UNUSED]    "unused",
+      [EMBRYO]    "embryo",
+      [SLEEPING]  "sleep ",
+      [RUNNABLE]  "runble",
+      [RUNNING]   "run   ",
+      [ZOMBIE]    "zombie"
+  };
+
+  char *state;
+  if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+    state = states[p->state];
+  else
+    state = "???\n";
+  cprintf("pid=%d\t"
+          "state=%s\t"
+          "name=%s\t"
+          "sz=0x%x\t"
+          "ssz=0x%x\t"
+          "stack_top=0x%x\t"
+          "stack_btm=0x%x\n",
+          p->pid,
+          state,
+          p->name,
+          p->sz,
+          p->ssz,
+          KERNBASE - PGSIZE,
+          KERNBASE - PGSIZE - p->ssz
+  );
+  return pid;
+}
+
+void
+memdump(void)
+{
+  int i;
+  struct proc *curproc = myproc();
+  uint *addr;
+
+  cprintf("--------        Stack Top [0x%x]       --------\n", KERNBASE - PGSIZE);
+  cprintf("----------------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
+  for (i = KERNBASE - PGSIZE - 4; i >= KERNBASE - PGSIZE - curproc->ssz; i -= 4) {
+    addr = (uint *) i;
+    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
+    if(i % PGSIZE == 0)
+      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+  }
+  cprintf("--------      Stack Bottom [0x%x]      --------\n", KERNBASE - PGSIZE - curproc->ssz);
+  cprintf("|                                                   |\n");
+  cprintf("|                    Unallocated                    |\n");
+  cprintf("|                                                   |\n");
+  cprintf("--------        Heap Top [0x%x]        --------\n", curproc->sz);
+  for (i = curproc->sz - 4; i >= curproc->hbtm; i -= 4) {
+    addr = (uint *) i;
+    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
+    if(i % PGSIZE == 0)
+      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+  }
+
+  cprintf("-------- Heap Bottom / Code Top [0x%x] --------\n", curproc->hbtm);
+  cprintf("----------------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
+  for (i = curproc->hbtm - 4; i >= 0; i -= 4) {
+    addr = (uint *) i;
+    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
+    if(i % PGSIZE == 0)
+      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+  }
+  cprintf("--------      Code Bottom [0x%x]       --------\n", 0);
 }
