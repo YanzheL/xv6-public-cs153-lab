@@ -534,3 +534,26 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int
+pgfault()
+{
+  struct proc *curproc = myproc();
+  uint pgup = PGROUNDUP(rcr2());
+
+  acquire(&ptable.lock);
+  uint stack_top = KERNBASE - PGSIZE;
+  uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
+  // Check current addr belongs to next stack page, and do not violate heap space
+  if(!(pgup == stack_btm && stack_btm != curproc->sz))
+    goto bad;
+  if(allocuvm(curproc->pgdir, stack_btm - PGSIZE, stack_btm) == 0)
+    goto bad;
+  curproc->ssz += PGSIZE;
+  release(&ptable.lock);
+  return 0;
+
+  bad:
+  release(&ptable.lock);
+  return -1;
+}
