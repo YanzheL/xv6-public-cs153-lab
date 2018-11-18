@@ -164,6 +164,8 @@ growproc(int n)
 
   sz = curproc->sz;
   if(n > 0){
+    if(sz + n >= KERNBASE - PGSIZE - curproc->ssz)
+      return -1;
     if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
@@ -540,20 +542,20 @@ pgfault()
 {
   struct proc *curproc = myproc();
   uint pgup = PGROUNDUP(rcr2());
+  uint szup = PGROUNDUP(curproc->sz);
 
-  acquire(&ptable.lock);
-  uint stack_top = KERNBASE - PGSIZE;
+//  acquire(&ptable.lock);
   uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
   // Check current addr belongs to next stack page, and do not violate heap space
-  if(!(pgup == stack_btm && stack_btm != curproc->sz))
+  if(!(pgup == stack_btm && stack_btm != szup))
     goto bad;
   if(allocuvm(curproc->pgdir, stack_btm - PGSIZE, stack_btm) == 0)
     goto bad;
   curproc->ssz += PGSIZE;
-  release(&ptable.lock);
+//  release(&ptable.lock);
   return 0;
 
   bad:
-  release(&ptable.lock);
+//  release(&ptable.lock);
   return -1;
 }
