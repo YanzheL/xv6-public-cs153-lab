@@ -120,6 +120,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             pgfault();
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -180,7 +181,7 @@ int             deallocuvm(pde_t*, uint, uint);
 void            freevm(pde_t*);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
-pde_t *copyuvm(pde_t *pgdir, uint sz, uint ssz);
+pde_t*          copyuvm(pde_t *pgdir, uint sz, uint ssz);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
