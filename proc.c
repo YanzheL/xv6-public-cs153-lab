@@ -545,13 +545,13 @@ procinfo(int pid)
     state = states[p->state];
   else
     state = "???\n";
-  cprintf("pid=%x\t"
+  cprintf("pid=%d\t"
           "state=%s\t"
           "name=%s\t"
-          "sz=%x\t"
-          "ssz=%x\t"
-          "stack_top=%x\t"
-          "stack_btm=%x\n",
+          "sz=0x%x\t"
+          "ssz=0x%x\t"
+          "stack_top=0x%x\t"
+          "stack_btm=0x%x\n",
           p->pid,
           state,
           p->name,
@@ -618,14 +618,14 @@ pgfault()
   uint szup = PGROUNDUP(curproc->sz);
 
   uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
-  cprintf("Begin handling T_PGFLT:\t\t"
-          "rcr2=%x\t"
-          "pgup=%x\t"
-          "sz=%x\t"
-          "szup=%x\t"
-          "stack_top=%x\t"
-          "stack_btm=%x\t"
-          "esp=%x\n",
+  cprintf("pgfault() begin:\t"
+          "rcr2=0x%x\t"
+          "pgup=0x%x\t"
+          "sz=0x%x\t"
+          "szup=0x%x \t"
+          "stack_top=0x%x\t"
+          "stack_btm=0x%x\t"
+          "esp=0x%x\n",
           rcr2(),
           pgup,
           curproc->sz,
@@ -634,7 +634,7 @@ pgfault()
           stack_btm,
           curproc->tf->esp
   );
-  // Check current addr belongs to next stack page, and do not violate heap space
+  // Check current addr belongs to unallocated area, and do not violate heap space
   if(stack_btm == szup || pgup == szup) {
     errmsg = errmsgs[0];
     goto bad;
@@ -644,20 +644,18 @@ pgfault()
     errmsg = errmsgs[1];
     goto bad;
   }
-
-
-//  if(allocuvm(curproc->pgdir, stack_btm - PGSIZE, stack_btm) == 0)
+  // Allocate all pages from pgdown to current stack_btm
   if(allocuvm(curproc->pgdir, pgdown, stack_btm) == 0) {
     errmsg = errmsgs[2];
     goto bad;
   }
   curproc->ssz += stack_btm - pgdown;
-  cprintf("Finished handling T_PGFLT: allocated %d pages, current stack_btm=%x\n",
+  cprintf("pgfault() success:\tallocated %d pages, current stack_btm=0x%x\n",
           (stack_btm - pgdown) >> 12,
           KERNBASE - PGSIZE - (curproc->ssz));
   return 0;
 
   bad:
-  cprintf("Error handling T_PGFLT: %s\n", errmsg);
+  cprintf("pgfault() exception: %s\n", errmsg);
   return -1;
 }
