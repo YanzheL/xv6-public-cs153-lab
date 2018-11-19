@@ -635,12 +635,12 @@ pgfault()
           curproc->tf->esp
   );
   // Check current addr belongs to unallocated area, and do not violate heap space
-  if(stack_btm == szup || pgup == szup) {
+  if(stack_btm == szup) {
     errmsg = errmsgs[0];
     goto bad;
   }
   // Check current addr is a stack allocation request
-  if(addr < curproc->tf->esp) {
+  if(addr < curproc->tf->esp || addr >= KERNBASE - PGSIZE) {
     errmsg = errmsgs[1];
     goto bad;
   }
