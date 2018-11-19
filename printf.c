@@ -9,26 +9,24 @@ putc(int fd, char c)
 }
 
 static void
-printint(int fd, int xx, int base, int sgn)
+printint(int fd, int xx, int base, int sign, int hex)
 {
   static char digits[] = "0123456789ABCDEF";
   char buf[16];
-  int i, neg;
+  int i;
   uint x;
 
-  neg = 0;
-  if(sgn && xx < 0){
-    neg = 1;
+  if(sign && (sign = xx < 0))
     x = -xx;
-  } else {
+  else
     x = xx;
-  }
 
   i = 0;
   do{
     buf[i++] = digits[x % base];
-  }while((x /= base) != 0);
-  if(neg)
+  }while(hex ? (x /= base, i != 8) : (x /= base));
+
+  if(sign)
     buf[i++] = '-';
 
   while(--i >= 0)
@@ -55,10 +53,10 @@ printf(int fd, char *fmt, ...)
       }
     } else if(state == '%'){
       if(c == 'd'){
-        printint(fd, *ap, 10, 1);
+        printint(fd, *ap, 10, 1, 0);
         ap++;
       } else if(c == 'x' || c == 'p'){
-        printint(fd, *ap, 16, 0);
+        printint(fd, *ap, 16, 0, 1);
         ap++;
       } else if(c == 's'){
         s = (char*)*ap;
