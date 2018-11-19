@@ -507,34 +507,108 @@ kill(int pid)
 void
 procdump(void)
 {
-  static char *states[] = {
-  [UNUSED]    "unused",
-  [EMBRYO]    "embryo",
-  [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
-  [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
-  };
-  int i;
-  struct proc *p;
-  char *state;
-  uint pc[10];
+  procinfo(-1);
+}
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == UNUSED)
-      continue;
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
-    if(p->state == SLEEPING){
-      getcallerpcs((uint*)p->context->ebp+2, pc);
-      for(i=0; i<10 && pc[i] != 0; i++)
-        cprintf(" %p", pc[i]);
+int
+procinfo(int pid)
+{
+  struct proc *p;
+  int i, found = 0;
+  if(pid == -1)
+    p = myproc();
+  else {
+    acquire(&ptable.lock);
+    for (i = 0; i < NPROC; ++i) {
+      p = ptable.proc + i;
+      if(p->pid == pid) {
+        found = 1;
+        break;
+      }
     }
-    cprintf("\n");
+    release(&ptable.lock);
+    if(!found)
+      return -1;
   }
+
+  static char *states[] = {
+      [UNUSED]    "unused",
+      [EMBRYO]    "embryo",
+      [SLEEPING]  "sleep ",
+      [RUNNABLE]  "runble",
+      [RUNNING]   "run   ",
+      [ZOMBIE]    "zombie"
+  };
+
+  char *state;
+  if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+    state = states[p->state];
+  else
+    state = "???\n";
+  cprintf("pid=%x\t"
+          "state=%s\t"
+          "name=%s\t"
+          "sz=%x\t"
+          "ssz=%x\t"
+          "stack_top=%x\t"
+          "stack_btm=%x\n",
+          p->pid,
+          state,
+          p->name,
+          p->sz,
+          p->ssz,
+          KERNBASE - PGSIZE,
+          KERNBASE - PGSIZE - p->ssz
+  );
+  return pid;
+}
+
+void
+memdump(void)
+{
+  int i;
+  struct proc *curproc = myproc();
+  uint *addr;
+
+//  cprintf("--------      KERNLINK %x    --------\n", KERNBASE + EXTMEM);
+//  for (i = KERNBASE + EXTMEM - 4; i >= KERNBASE; i -= 4) {
+//    addr = i;
+//    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+//    if(i % PGSIZE == 0)
+//      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+//  }
+//  cprintf("--------      KERNBASE %x    --------\n", KERNBASE);
+
+  cprintf("--------   Stack Top [0x%x]  --------\n", KERNBASE - PGSIZE);
+  cprintf("------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
+  for (i = KERNBASE - PGSIZE - 4; i >= KERNBASE - PGSIZE - curproc->ssz; i -= 4) {
+    addr = i;
+    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+    if(i % PGSIZE == 0)
+      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+  }
+  cprintf("-------- Stack Bottom [0x%x] --------\n", KERNBASE - PGSIZE - curproc->ssz);
+  cprintf("|                                         |\n");
+  cprintf("|               Unallocated               |\n");
+  cprintf("|                                         |\n");
+  cprintf("--------   Heap Top [0x%x]   --------\n", curproc->sz);
+  for (i = curproc->sz - 4; i >= curproc->hbtm; i -= 4) {
+    addr = i;
+    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+    if(i % PGSIZE == 0)
+      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+  }
+  cprintf("-------- Heap Bottom [0x%x]  --------\n", curproc->hbtm);
+
+  cprintf("--------  Code Top [0x%x]    --------\n", curproc->hbtm);
+  cprintf("------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
+  for (i = curproc->hbtm - 4; i >= 0; i -= 4) {
+    addr = i;
+    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+    if(i % PGSIZE == 0)
+      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+  }
+  cprintf("-------- Code Bottom [0x%x]  --------\n", 0);
 }
 
 int
@@ -542,20 +616,35 @@ pgfault()
 {
   struct proc *curproc = myproc();
   uint pgup = PGROUNDUP(rcr2());
+  uint pgdown = pgup - PGSIZE;
   uint szup = PGROUNDUP(curproc->sz);
 
-//  acquire(&ptable.lock);
   uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
+  cprintf("Begin handling T_PGFLT, rcr2=%x, pgup=%x, sz=%x, szup=%x, stack_top=%x, stack_btm=%x\n",
+          rcr2(),
+          pgup,
+          curproc->sz,
+          szup,
+          KERNBASE - PGSIZE,
+          stack_btm
+  );
   // Check current addr belongs to next stack page, and do not violate heap space
-  if(!(pgup == stack_btm && stack_btm != szup))
+//  if(!(pgup == stack_btm && stack_btm != szup))
+  if(stack_btm == szup || pgup == szup)
     goto bad;
-  if(allocuvm(curproc->pgdir, stack_btm - PGSIZE, stack_btm) == 0)
+//  if(pgup!=stack_btm)
+//    goto done;
+//  if(allocuvm(curproc->pgdir, stack_btm - PGSIZE, stack_btm) == 0)
+  if(allocuvm(curproc->pgdir, pgdown, stack_btm) == 0)
     goto bad;
-  curproc->ssz += PGSIZE;
-//  release(&ptable.lock);
+  curproc->ssz += stack_btm - pgdown;
+//  done:
+  cprintf("Finished handling T_PGFLT, allocated %d pages, current stack_btm=%x\n",
+          (stack_btm - pgdown) >> 12,
+          KERNBASE - PGSIZE - (curproc->ssz));
   return 0;
 
   bad:
-//  release(&ptable.lock);
+  cprintf("Error handling T_PGFLT, current stack_btm=%x\n", KERNBASE - PGSIZE - (curproc->ssz));
   return -1;
 }
