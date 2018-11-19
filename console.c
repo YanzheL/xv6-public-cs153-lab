@@ -25,7 +25,7 @@ static struct {
 } cons;
 
 static void
-printint(int xx, int base, int sign)
+printint(int xx, int base, int sign, int hex)
 {
   static char digits[] = "0123456789ABCDEF";
   char buf[16];
@@ -41,7 +41,7 @@ printint(int xx, int base, int sign)
   do{
     buf[i++] = digits[x % base];
 //  }while((x /= base) != 0);
-  }while(x /= base, i != 8);
+  }while(hex ? (x /= base, i != 8) : (x /= base));
 
   if(sign)
     buf[i++] = '-';
@@ -77,11 +77,11 @@ cprintf(char *fmt, ...)
       break;
     switch(c){
     case 'd':
-      printint(*argp++, 10, 1);
+      printint(*argp++, 10, 1, 0);
       break;
     case 'x':
     case 'p':
-      printint(*argp++, 16, 0);
+      printint(*argp++, 16, 0, 1);
       break;
     case 's':
       if((s = (char*)*argp++) == 0)
