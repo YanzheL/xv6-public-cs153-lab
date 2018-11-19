@@ -112,6 +112,7 @@ struct cpu*     mycpu(void);
 struct proc*    myproc();
 void            pinit(void);
 void            procdump(void);
+int             procinfo(int);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);
@@ -121,6 +122,7 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 int             pgfault();
+void            memdump(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
