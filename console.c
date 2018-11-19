@@ -27,7 +27,7 @@ static struct {
 static void
 printint(int xx, int base, int sign)
 {
-  static char digits[] = "0123456789abcdef";
+  static char digits[] = "0123456789ABCDEF";
   char buf[16];
   int i;
   uint x;
