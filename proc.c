@@ -570,81 +570,94 @@ memdump(void)
   struct proc *curproc = myproc();
   uint *addr;
 
-//  cprintf("--------      KERNLINK %x    --------\n", KERNBASE + EXTMEM);
-//  for (i = KERNBASE + EXTMEM - 4; i >= KERNBASE; i -= 4) {
-//    addr = i;
-//    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
-//    if(i % PGSIZE == 0)
-//      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
-//  }
-//  cprintf("--------      KERNBASE %x    --------\n", KERNBASE);
-
-  cprintf("--------   Stack Top [0x%x]  --------\n", KERNBASE - PGSIZE);
-  cprintf("------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
+  cprintf("--------        Stack Top [0x%x]       --------\n", KERNBASE - PGSIZE);
+  cprintf("----------------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
   for (i = KERNBASE - PGSIZE - 4; i >= KERNBASE - PGSIZE - curproc->ssz; i -= 4) {
     addr = i;
-    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
     if(i % PGSIZE == 0)
-      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
   }
-  cprintf("-------- Stack Bottom [0x%x] --------\n", KERNBASE - PGSIZE - curproc->ssz);
-  cprintf("|                                         |\n");
-  cprintf("|               Unallocated               |\n");
-  cprintf("|                                         |\n");
-  cprintf("--------   Heap Top [0x%x]   --------\n", curproc->sz);
+  cprintf("--------      Stack Bottom [0x%x]      --------\n", KERNBASE - PGSIZE - curproc->ssz);
+  cprintf("|                                                   |\n");
+  cprintf("|                    Unallocated                    |\n");
+  cprintf("|                                                   |\n");
+  cprintf("--------        Heap Top [0x%x]        --------\n", curproc->sz);
   for (i = curproc->sz - 4; i >= curproc->hbtm; i -= 4) {
     addr = i;
-    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
     if(i % PGSIZE == 0)
-      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
   }
-  cprintf("-------- Heap Bottom [0x%x]  --------\n", curproc->hbtm);
 
-  cprintf("--------  Code Top [0x%x]    --------\n", curproc->hbtm);
-  cprintf("------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
+  cprintf("-------- Heap Bottom / Code Top [0x%x] --------\n", curproc->hbtm);
+  cprintf("----------------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
   for (i = curproc->hbtm - 4; i >= 0; i -= 4) {
     addr = i;
-    cprintf("|        %x  ---->  %x        |\n", addr, *addr);
+    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
     if(i % PGSIZE == 0)
-      cprintf("------------------------------------------- <- Page %d\n", i >> 12);
+      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
   }
-  cprintf("-------- Code Bottom [0x%x]  --------\n", 0);
+  cprintf("--------      Code Bottom [0x%x]       --------\n", 0);
 }
 
 int
 pgfault()
 {
+  static char *errmsgs[] = {
+      "NO_FREE_SPACE",
+      "EXC_BAD_ACCESS",
+      "ALLOCUVM_ERROR"
+  };
+  char *errmsg;
+
   struct proc *curproc = myproc();
-  uint pgup = PGROUNDUP(rcr2());
+  uint addr = rcr2();
+  uint pgup = PGROUNDUP(addr);
   uint pgdown = pgup - PGSIZE;
   uint szup = PGROUNDUP(curproc->sz);
 
   uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
-  cprintf("Begin handling T_PGFLT, rcr2=%x, pgup=%x, sz=%x, szup=%x, stack_top=%x, stack_btm=%x\n",
+  cprintf("Begin handling T_PGFLT:\t\t"
+          "rcr2=%x\t"
+          "pgup=%x\t"
+          "sz=%x\t"
+          "szup=%x\t"
+          "stack_top=%x\t"
+          "stack_btm=%x\t"
+          "esp=%x\n",
           rcr2(),
           pgup,
           curproc->sz,
           szup,
           KERNBASE - PGSIZE,
-          stack_btm
+          stack_btm,
+          curproc->tf->esp
   );
   // Check current addr belongs to next stack page, and do not violate heap space
-//  if(!(pgup == stack_btm && stack_btm != szup))
-  if(stack_btm == szup || pgup == szup)
+  if(stack_btm == szup || pgup == szup) {
+    errmsg = errmsgs[0];
     goto bad;
-//  if(pgup!=stack_btm)
-//    goto done;
+  }
+  // Check current addr is a stack allocation request
+  if(addr < curproc->tf->esp) {
+    errmsg = errmsgs[1];
+    goto bad;
+  }
+
+
 //  if(allocuvm(curproc->pgdir, stack_btm - PGSIZE, stack_btm) == 0)
-  if(allocuvm(curproc->pgdir, pgdown, stack_btm) == 0)
+  if(allocuvm(curproc->pgdir, pgdown, stack_btm) == 0) {
+    errmsg = errmsgs[2];
     goto bad;
+  }
   curproc->ssz += stack_btm - pgdown;
-//  done:
-  cprintf("Finished handling T_PGFLT, allocated %d pages, current stack_btm=%x\n",
+  cprintf("Finished handling T_PGFLT: allocated %d pages, current stack_btm=%x\n",
           (stack_btm - pgdown) >> 12,
           KERNBASE - PGSIZE - (curproc->ssz));
   return 0;
 
   bad:
-  cprintf("Error handling T_PGFLT, current stack_btm=%x\n", KERNBASE - PGSIZE - (curproc->ssz));
+  cprintf("Error handling T_PGFLT: %s\n", errmsg);
   return -1;
 }
