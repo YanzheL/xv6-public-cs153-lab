@@ -40,7 +40,8 @@ printint(int xx, int base, int sign)
   i = 0;
   do{
     buf[i++] = digits[x % base];
-  }while((x /= base) != 0);
+//  }while((x /= base) != 0);
+  }while(x /= base, i != 8);
 
   if(sign)
     buf[i++] = '-';
