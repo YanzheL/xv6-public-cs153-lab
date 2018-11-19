@@ -78,6 +78,27 @@ sys_sbrk(void)
   return addr;
 }
 
+int sys_memdump()
+{
+  memdump();
+  return 0;
+}
+
+int
+sys_procdump()
+{
+  procdump();
+  return 0;
+}
+
+int
+sys_procinfo()
+{
+  int n;
+  argint(0,&n);
+  return procinfo(n);
+}
+
 int
 sys_sleep(void)
 {
