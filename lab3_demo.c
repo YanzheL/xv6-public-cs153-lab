@@ -25,7 +25,7 @@ int test1()
 
 int test2()
 {
-  uint *bad_pointer = 0x7fff0000;
+  uint *bad_pointer = (uint *) 0x7fff0000;
   printf(1, "Trying to write to illegal address at 0x%p, this should throw a exception.\n", bad_pointer);
   *bad_pointer = 0xFFFFFFFF;
   procinfo(getpid());

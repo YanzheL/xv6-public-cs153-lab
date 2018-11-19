@@ -573,7 +573,7 @@ memdump(void)
   cprintf("--------        Stack Top [0x%x]       --------\n", KERNBASE - PGSIZE);
   cprintf("----------------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
   for (i = KERNBASE - PGSIZE - 4; i >= KERNBASE - PGSIZE - curproc->ssz; i -= 4) {
-    addr = i;
+    addr = (uint *) i;
     cprintf("|            %x   ---->   %x            |\n", addr, *addr);
     if(i % PGSIZE == 0)
       cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
@@ -584,7 +584,7 @@ memdump(void)
   cprintf("|                                                   |\n");
   cprintf("--------        Heap Top [0x%x]        --------\n", curproc->sz);
   for (i = curproc->sz - 4; i >= curproc->hbtm; i -= 4) {
-    addr = i;
+    addr = (uint *) i;
     cprintf("|            %x   ---->   %x            |\n", addr, *addr);
     if(i % PGSIZE == 0)
       cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
@@ -593,7 +593,7 @@ memdump(void)
   cprintf("-------- Heap Bottom / Code Top [0x%x] --------\n", curproc->hbtm);
   cprintf("----------------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
   for (i = curproc->hbtm - 4; i >= 0; i -= 4) {
-    addr = i;
+    addr = (uint *) i;
     cprintf("|            %x   ---->   %x            |\n", addr, *addr);
     if(i % PGSIZE == 0)
       cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
