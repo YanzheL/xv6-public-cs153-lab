@@ -437,8 +437,11 @@ pgfault()
     errmsg = errmsgs[0];
     goto bad;
   }
+
+  uint lower_bound = stack_btm - PGSIZE <= curproc->tf->esp ? stack_btm - PGSIZE : curproc->tf->esp;
+
   // Check current addr is a stack allocation request
-  if(addr < curproc->tf->esp || addr >= KERNBASE - PGSIZE) {
+  if(addr < lower_bound || addr >= KERNBASE - PGSIZE) {
     errmsg = errmsgs[1];
     goto bad;
   }
