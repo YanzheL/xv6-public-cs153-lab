@@ -107,4 +107,5 @@ add_executable(
     x86.h
     zombie.c
     lab3_demo.c
+    lab3.c
 )
