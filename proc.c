@@ -235,6 +235,7 @@ exit(void)
   struct proc *curproc = myproc();
   struct proc *p;
   int fd;
+  cprintf("exit start\n");
 
   if(curproc == initproc)
     panic("init exiting");
@@ -268,6 +269,7 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  cprintf("exit end\n");
   sched();
   panic("zombie exit");
 }
@@ -280,6 +282,8 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
+  cprintf("[%d]wait start\n",curproc->pid);
+  procinfo(curproc->pid);
   
   acquire(&ptable.lock);
   for(;;){
@@ -290,6 +294,7 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
+        cprintf("found [%d]\n",p->pid);
         // Found one.
         pid = p->pid;
         kfree(p->kstack);

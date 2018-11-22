@@ -266,12 +266,15 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     pte = walkpgdir(pgdir, (char*)a, 0);
     if(!pte)
       a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
-    else if((*pte & PTE_P) != 0){
+    else if(*pte & PTE_P){
       pa = PTE_ADDR(*pte);
       if(pa == 0)
         panic("kfree");
       char *v = P2V(pa);
-      kfree(v);
+      if((*pte & PTE_W))
+        kfree(v);
+//      else
+//        panic("ll");
       *pte = 0;
     }
   }
@@ -289,7 +292,7 @@ freevm(pde_t *pgdir)
     panic("freevm: no pgdir");
   deallocuvm(pgdir, KERNBASE, 0);
   for(i = 0; i < NPDENTRIES; i++){
-    if(pgdir[i] & PTE_P){
+    if((pgdir[i] & PTE_P) && (pgdir[i] & PTE_W)){
       char * v = P2V(PTE_ADDR(pgdir[i]));
       kfree(v);
     }
@@ -323,27 +326,27 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
   if((d = setupkvm()) == 0)
     return 0;
   // Map code && heap
-  for (i = 0; i < sz; i += PGSIZE) {
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char *) P2V(pa), PGSIZE);
-    if(mappages(d, (void *) i, PGSIZE, V2P(mem), flags) < 0)
-      goto bad;
-  }
-//  for(i = 0; i < sz; i += PGSIZE){
+//  for (i = 0; i < sz; i += PGSIZE) {
 //    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
 //      panic("copyuvm: pte should exist");
 //    if(!(*pte & PTE_P))
 //      panic("copyuvm: page not present");
-//    *pte &= (~PTE_W);
 //    pa = PTE_ADDR(*pte);
-////    flags = PTE_FLAGS(*pte);
+//    flags = PTE_FLAGS(*pte);
+//    if((mem = kalloc()) == 0)
+//      goto bad;
+//    memmove(mem, (char *) P2V(pa), PGSIZE);
+//    if(mappages(d, (void *) i, PGSIZE, V2P(mem), flags) < 0)
+//      goto bad;
+//  }
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    *pte &= (~PTE_W);
+    pa = PTE_ADDR(*pte);
+//    flags = PTE_FLAGS(*pte);
 //    cprintf(
 //        "copyuvm() begin[%d]:\t"
 //        "i=0x%x\t"
@@ -355,21 +358,10 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
 //        *pte,
 //        PTE_FLAGS(*pte)
 //    );
-//    if(mappages(d, (void*)i, PGSIZE, pa, PTE_U) < 0)
-//      goto bad;
-//  }
-  // Map stack
-  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm2: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm2: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    *pte &= ~PTE_W;
-    if(mappages(d, (void *) i, PGSIZE, pa, PTE_U) < 0)
+    if(mappages(d, (void*)i, PGSIZE, pa, PTE_U) < 0)
       goto bad;
   }
+  // Map stack
 //  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
 //    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
 //      panic("copyuvm2: pte should exist");
@@ -377,12 +369,23 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
 //      panic("copyuvm2: page not present");
 //    pa = PTE_ADDR(*pte);
 //    flags = PTE_FLAGS(*pte);
-//    if((mem = kalloc()) == 0)
-//      goto bad;
-//    memmove(mem, (char*)P2V(pa), PGSIZE);
-//    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+//    *pte &= ~PTE_W;
+//    if(mappages(d, (void *) i, PGSIZE, pa, PTE_U) < 0)
 //      goto bad;
 //  }
+  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm2: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm2: page not present");
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+      goto bad;
+  }
 
   return d;
 
@@ -483,7 +486,7 @@ pgfault()
   );
 
   // Copy on Write
-  if(*pte & PTE_P && !(*pte & PTE_W)) {
+  if(*pte & PTE_P && !(*pte & PTE_W) && addr >= curproc->hbtm) {
     cprintf(
         "Cow() begin:\t"
         "pte=0x%x\t"
