@@ -138,6 +138,7 @@ userinit(void)
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
+//  p->tf->esp = KERNBASE - 2 * PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
@@ -550,6 +551,7 @@ procinfo(int pid)
           "name=%s\t"
           "sz=0x%x\t"
           "ssz=0x%x\t"
+          "hbtm=0x%x\t"
           "stack_top=0x%x\t"
           "stack_btm=0x%x\n",
           p->pid,
@@ -557,6 +559,7 @@ procinfo(int pid)
           p->name,
           p->sz,
           p->ssz,
+          p->hbtm,
           KERNBASE - PGSIZE,
           KERNBASE - PGSIZE - p->ssz
   );
