@@ -122,7 +122,7 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 int             pgfault();
-void            memdump(void);
+void            memdump(uint options);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

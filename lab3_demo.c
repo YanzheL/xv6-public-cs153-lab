@@ -47,7 +47,7 @@ int test3()
 
   printf(1, "&s[begin]=0x%x\tvalue=%d\n", s, s[0]);
   printf(1, "&s[end]=0x%x\tvalue=%d\n", &s[n - 1], s[n - 1]);
-  memdump();
+  memdump(DUMP_CODE | DUMP_HEAP | DUMP_STACK);
   return 0;
 }
 

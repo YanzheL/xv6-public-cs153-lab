@@ -78,9 +78,13 @@ sys_sbrk(void)
   return addr;
 }
 
-int sys_memdump()
+int sys_memdump(void)
 {
-  memdump();
+  int n;
+
+  if(argint(0, &n) < 0)
+    return -1;
+  memdump((uint) n);
   return 0;
 }
 

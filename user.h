@@ -26,7 +26,7 @@ int uptime(void);
 int shm_open(int, char **);
 int shm_close(int);
 int procinfo(int);
-void memdump(void);
+void memdump(uint options);
 
 // ulib.c
 int stat(char*, struct stat*);
