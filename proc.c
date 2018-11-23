@@ -564,39 +564,49 @@ procinfo(int pid)
 }
 
 void
-memdump(void)
+memdump(uint options)
 {
   int i;
   struct proc *curproc = myproc();
   uint *addr;
 
-  cprintf("--------        Stack Top [0x%x]       --------\n", KERNBASE - PGSIZE);
-  cprintf("----------------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
-  for (i = KERNBASE - PGSIZE - 4; i >= KERNBASE - PGSIZE - curproc->ssz; i -= 4) {
-    addr = (uint *) i;
-    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
-    if(i % PGSIZE == 0)
-      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+  if(options & DUMP_STACK) {
+    cprintf("--------        Stack Top [0x%x]       --------\n", KERNBASE - PGSIZE);
+    cprintf("----------------------------------------------------- <- Page %d\n", (KERNBASE - PGSIZE) >> 12);
+    for (i = KERNBASE - PGSIZE - 4; i >= KERNBASE - PGSIZE - curproc->ssz; i -= 4) {
+      addr = (uint *) i;
+      cprintf("|            %x   ---->   %x            |\n", addr, *addr);
+      if(i % PGSIZE == 0)
+        cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+    }
+    cprintf("--------      Stack Bottom [0x%x]      --------\n", KERNBASE - PGSIZE - curproc->ssz);
   }
-  cprintf("--------      Stack Bottom [0x%x]      --------\n", KERNBASE - PGSIZE - curproc->ssz);
-  cprintf("|                                                   |\n");
-  cprintf("|                    Unallocated                    |\n");
-  cprintf("|                                                   |\n");
-  cprintf("--------        Heap Top [0x%x]        --------\n", curproc->sz);
-  for (i = curproc->sz - 4; i >= curproc->hbtm; i -= 4) {
-    addr = (uint *) i;
-    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
-    if(i % PGSIZE == 0)
-      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+  if((options & DUMP_STACK) && (options & DUMP_HEAP)) {
+    cprintf("|                                                   |\n");
+    cprintf("|                    Unallocated                    |\n");
+    cprintf("|                                                   |\n");
   }
 
-  cprintf("-------- Heap Bottom / Code Top [0x%x] --------\n", curproc->hbtm);
-  cprintf("----------------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
-  for (i = curproc->hbtm - 4; i >= 0; i -= 4) {
-    addr = (uint *) i;
-    cprintf("|            %x   ---->   %x            |\n", addr, *addr);
-    if(i % PGSIZE == 0)
-      cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+  if(options & DUMP_HEAP) {
+    cprintf("--------        Heap Top [0x%x]        --------\n", curproc->sz);
+    for (i = curproc->sz - 4; i >= curproc->hbtm; i -= 4) {
+      addr = (uint *) i;
+      cprintf("|            %x   ---->   %x            |\n", addr, *addr);
+      if(i % PGSIZE == 0)
+        cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+    }
   }
-  cprintf("--------      Code Bottom [0x%x]       --------\n", 0);
+  if(options & DUMP_HEAP || options & DUMP_CODE)
+    cprintf("-------- Heap Bottom / Code Top [0x%x] --------\n", curproc->hbtm);
+
+  if(options & DUMP_CODE) {
+    cprintf("----------------------------------------------------- <- Page %d\n", curproc->hbtm >> 12);
+    for (i = curproc->hbtm - 4; i >= 0; i -= 4) {
+      addr = (uint *) i;
+      cprintf("|            %x   ---->   %x            |\n", addr, *addr);
+      if(i % PGSIZE == 0)
+        cprintf("----------------------------------------------------- <- Page %d\n", i >> 12);
+    }
+    cprintf("--------      Code Bottom [0x%x]       --------\n", 0);
+  }
 }
