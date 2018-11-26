@@ -94,3 +94,22 @@ kalloc(void)
   return (char*)r;
 }
 
+// return current length of freelist
+int
+kmusage()
+{
+  int ct = 0;
+  struct run *head, *r;
+
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  head = kmem.freelist;
+  r = head;
+  while (r) {
+    ++ct;
+    r = r->next;
+  }
+  if(kmem.use_lock)
+    release(&kmem.lock);
+  return ct;
+}
