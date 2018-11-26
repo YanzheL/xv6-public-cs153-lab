@@ -233,6 +233,7 @@ void
 exit(void)
 {
   struct proc *curproc = myproc();
+  procinfo(curproc->pid);
   struct proc *p;
   int fd;
 //  cprintf("exit start\n");
@@ -283,7 +284,7 @@ wait(void)
   int havekids, pid;
   struct proc *curproc = myproc();
 //  cprintf("[%d]wait start\n",curproc->pid);
-  procinfo(curproc->pid);
+//  procinfo(curproc->pid);
   
   acquire(&ptable.lock);
   for(;;){
@@ -558,7 +559,8 @@ procinfo(int pid)
           "ssz=0x%x\t"
           "hbtm=0x%x\t"
           "stack_top=0x%x\t"
-          "stack_btm=0x%x\n",
+          "stack_btm=0x%x\t"
+          "kmfree=%d\n",
           p->pid,
           state,
           p->name,
@@ -566,7 +568,8 @@ procinfo(int pid)
           p->ssz,
           p->hbtm,
           KERNBASE - PGSIZE,
-          KERNBASE - PGSIZE - p->ssz
+          KERNBASE - PGSIZE - p->ssz,
+          kmusage()
   );
   return pid;
 }
