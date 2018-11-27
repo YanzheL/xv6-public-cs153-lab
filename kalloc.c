@@ -21,6 +21,7 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  uint pgrefs[PHYSTOP >> PGSHIFT];
 } kmem;
 
 // Initialization happens in two phases.
@@ -64,14 +65,16 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  // Fill with junk to catch dangling refs.
-  memset(v, 1, PGSIZE);
-
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = (struct run*)v;
-  r->next = kmem.freelist;
-  kmem.freelist = r;
+  if(kmem.pgrefs[V2P(r) >> PGSHIFT] <= 1) {
+    // Fill with junk to catch dangling refs.
+    memset(v, 1, PGSIZE);
+    r->next = kmem.freelist;
+    kmem.freelist = r;
+  } else
+    --kmem.pgrefs[V2P(r) >> PGSHIFT];
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -87,8 +90,10 @@ kalloc(void)
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
     kmem.freelist = r->next;
+    kmem.pgrefs[V2P(r) >> PGSHIFT] = 1;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;
@@ -112,4 +117,38 @@ kmusage()
   if(kmem.use_lock)
     release(&kmem.lock);
   return ct;
+}
+
+// pgrefs modifiers, can only be used outside of kalloc.c
+void
+pgref_inc(uint pa)
+{
+  if(pa < (uint) V2P(end) || pa >= PHYSTOP)
+    panic("pgref_inc(): invalid pa");
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  ++kmem.pgrefs[pa >> PGSHIFT];
+  if(kmem.use_lock)
+    release(&kmem.lock);
+}
+
+void
+pgref_dec(uint pa)
+{
+  if(pa < (uint) V2P(end) || pa >= PHYSTOP)
+    panic("pgref_inc(): invalid pa");
+
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  --kmem.pgrefs[pa >> PGSHIFT];
+  if(kmem.use_lock)
+    release(&kmem.lock);
+}
+
+uint
+pgref(uint pa)
+{
+  if(pa < (uint) V2P(end) || pa >= PHYSTOP)
+    panic("pgref_inc(): invalid pa");
+  return kmem.pgrefs[pa >> PGSHIFT];
 }
