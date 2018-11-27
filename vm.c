@@ -266,15 +266,12 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     pte = walkpgdir(pgdir, (char*)a, 0);
     if(!pte)
       a = PGADDR(PDX(a) + 1, 0, 0) - PGSIZE;
-    else if(*pte & PTE_P){
+    else if((*pte & PTE_P) != 0){
       pa = PTE_ADDR(*pte);
       if(pa == 0)
         panic("kfree");
       char *v = P2V(pa);
-      if((*pte & PTE_W))
-        kfree(v);
-//      else
-//        panic("ll");
+      kfree(v);
       *pte = 0;
     }
   }
@@ -320,25 +317,11 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
 {
   pde_t *d;
   pte_t *pte;
-  uint pa, i, flags;
-  char *mem;
+  uint pa, i;
 
   if((d = setupkvm()) == 0)
     return 0;
   // Map code && heap
-//  for (i = 0; i < sz; i += PGSIZE) {
-//    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-//      panic("copyuvm: pte should exist");
-//    if(!(*pte & PTE_P))
-//      panic("copyuvm: page not present");
-//    pa = PTE_ADDR(*pte);
-//    flags = PTE_FLAGS(*pte);
-//    if((mem = kalloc()) == 0)
-//      goto bad;
-//    memmove(mem, (char *) P2V(pa), PGSIZE);
-//    if(mappages(d, (void *) i, PGSIZE, V2P(mem), flags) < 0)
-//      goto bad;
-//  }
   for (i = 0; i < sz; i += PGSIZE) {
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
@@ -346,14 +329,25 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
       panic("copyuvm: page not present");
     *pte &= (~PTE_W);
     pa = PTE_ADDR(*pte);
-//    flags = PTE_FLAGS(*pte);
+    if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
+      goto bad;
+    // Increase page reference count
+    pgref_inc(pa);
+  }
+  // Map stack
+  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm2: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm2: page not present");
+    *pte &= ~PTE_W;
+    pa = PTE_ADDR(*pte);
 //    cprintf(
 //        "copyuvm() begin[%d]:\t"
 //        "i=0x%x\t"
 //        "pte=0x%x\t"
 //        "flags=0x%x\t"
-//        "pa=0x%x\n"
-//        ,
+//        "pa=0x%x\n",
 //        myproc()->pid,
 //        i,
 //        *pte,
@@ -362,37 +356,15 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
 //    );
     if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
       goto bad;
-  }
-  // Map stack
-//  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
-//    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-//      panic("copyuvm2: pte should exist");
-//    if(!(*pte & PTE_P))
-//      panic("copyuvm2: page not present");
-//    pa = PTE_ADDR(*pte);
-////    flags = PTE_FLAGS(*pte);
-//    *pte &= ~PTE_W;
-//    if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
-//      goto bad;
-//  }
-  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm2: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm2: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char *) P2V(pa), PGSIZE);
-    if(mappages(d, (void *) i, PGSIZE, V2P(mem), flags) < 0)
-      goto bad;
+    pgref_inc(pa);
   }
 
+  lcr3(V2P(pgdir));
   return d;
 
   bad:
   freevm(d);
+  lcr3(V2P(pgdir));
   return 0;
 }
 
@@ -488,39 +460,33 @@ pgfault()
 
   // Copy on Write
   if(*pte & PTE_P && !(*pte & PTE_W)) {
-//    if(addr<curproc->hbtm){
-//      cprintf(
-//          "Cow() begin:, "
-//          "rcr2=0x%x, "
-//          "pte=0x%x, "
-//          "flags=0x%x, "
-//          "pgdown=0x%x, "
-//          "pgup=0x%x, "
-//          "pa=0x%x, "
-//          "P2V=0x%x\n",
-//          rcr2(),
-//          *pte,
-//          PTE_FLAGS(*pte),
-//          pgdown,
-//          pgup,
-//          PTE_ADDR(*pte),
-//          P2V(PTE_ADDR(*pte))
-//      );
-//    }
+//    cprintf(
+//        "Cow() begin:\t"
+//        "rcr2=0x%x, "
+//        "pte=0x%x, "
+//        "flags=0x%x, "
+//        "pgdown=0x%x, "
+//        "pgup=0x%x, "
+//        "pa=0x%x, "
+//        "P2V=0x%x\n",
+//        rcr2(),
+//        *pte,
+//        PTE_FLAGS(*pte),
+//        pgdown,
+//        pgup,
+//        PTE_ADDR(*pte),
+//        P2V(PTE_ADDR(*pte))
+//    );
+
     if((mem = kalloc()) == 0) {
       errmsg = errmsgs[3];
       goto bad;
     }
     pa = PTE_ADDR(*pte);
-//    *pte &= ~PTE_P;
-    memmove(mem, (char *) P2V(pa), PGSIZE); // TODO: Maybe incorrect
+    memmove(mem, (char *) P2V(pa), PGSIZE);
+    kfree(P2V(pa));
+    // Just replace the pa part in pte with new mem
     *pte = V2P(mem) | PTE_W | PTE_FLAGS(*pte);
-//    if(mappages(curproc->pgdir, (void *) pgdown, PGSIZE, V2P(mem), PTE_FLAGS(*pte) | PTE_W) < 0) {
-//      errmsg = errmsgs[4];
-//      kfree(mem);
-//      *pte |= PTE_P;
-//      goto bad;
-//    }
     goto done;
   }
 
