@@ -68,8 +68,8 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
   for(;;){
     if((pte = walkpgdir(pgdir, a, 1)) == 0)
       return -1;
-//    if(*pte & PTE_P)
-//      panic("remap");
+    if(*pte & PTE_P)
+      panic("remap");
     *pte = pa | perm | PTE_P;
     if(a == last)
       break;
@@ -342,18 +342,6 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
       panic("copyuvm2: page not present");
     *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
-//    cprintf(
-//        "copyuvm() begin[%d]:\t"
-//        "i=0x%x\t"
-//        "pte=0x%x\t"
-//        "flags=0x%x\t"
-//        "pa=0x%x\n",
-//        myproc()->pid,
-//        i,
-//        *pte,
-//        PTE_FLAGS(*pte),
-//        pa
-//    );
     if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
       goto bad;
     pgref_inc(pa);
@@ -423,61 +411,15 @@ pgfault()
 
   struct proc *curproc = myproc();
   uint addr = rcr2();
-  uint pgup = PGROUNDUP(addr);
   uint pgdown = PGROUNDDOWN(addr);
-  uint allocated = 0;
-  pte_t *pte = walkpgdir(curproc->pgdir, (void *) addr, 0);
-  char *mem;
-  uint pa;
   uint szup = PGROUNDUP(curproc->sz);
-
   uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
-//  cprintf("pgfault() begin[%d]:\t"
-//          "name=%s, "
-//          "rcr2=0x%x, "
-//          "pte=0x%x, "
-//          "flags=0x%x, "
-//          "pgup=0x%x, "
-//          "sz=0x%x, "
-//          "szup=0x%x, "
-//          "hbtm=0x%x, "
-//          "stack_top=0x%x, "
-//          "stack_btm=0x%x, "
-//          "esp=0x%x\n",
-//          curproc->pid,
-//          curproc->name,
-//          rcr2(),
-//          *pte,
-//          PTE_FLAGS(*pte),
-//          pgup,
-//          curproc->sz,
-//          szup,
-//          curproc->hbtm,
-//          KERNBASE - PGSIZE,
-//          stack_btm,
-//          curproc->tf->esp
-//  );
+  pte_t *pte = walkpgdir(curproc->pgdir, (void *) addr, 0);
 
   // Copy on Write
   if(*pte & PTE_P && !(*pte & PTE_W)) {
-//    cprintf(
-//        "Cow() begin:\t"
-//        "rcr2=0x%x, "
-//        "pte=0x%x, "
-//        "flags=0x%x, "
-//        "pgdown=0x%x, "
-//        "pgup=0x%x, "
-//        "pa=0x%x, "
-//        "P2V=0x%x\n",
-//        rcr2(),
-//        *pte,
-//        PTE_FLAGS(*pte),
-//        pgdown,
-//        pgup,
-//        PTE_ADDR(*pte),
-//        P2V(PTE_ADDR(*pte))
-//    );
-
+    char *mem;
+    uint pa;
     if((mem = kalloc()) == 0) {
       errmsg = errmsgs[3];
       goto bad;
@@ -509,12 +451,8 @@ pgfault()
     goto bad;
   }
   curproc->ssz += stack_btm - pgdown;
-  allocated = (stack_btm - pgdown) >> 12;
 
   done:
-//  cprintf("pgfault() success:\tallocated %d pages, current stack_btm=0x%x\n",
-//          allocated,
-//          KERNBASE - PGSIZE - (curproc->ssz));
   return 0;
 
   bad:
