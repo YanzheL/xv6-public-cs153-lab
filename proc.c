@@ -138,6 +138,7 @@ userinit(void)
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
+//  p->tf->esp = KERNBASE - 2 * PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
@@ -280,6 +281,8 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
+//  cprintf("[%d]wait start\n",curproc->pid);
+//  procinfo(curproc->pid);
   
   acquire(&ptable.lock);
   for(;;){
@@ -290,6 +293,7 @@ wait(void)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
+//        cprintf("found [%d]\n",p->pid);
         // Found one.
         pid = p->pid;
         kfree(p->kstack);
