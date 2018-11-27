@@ -68,6 +68,10 @@ char*           kalloc(void);
 void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
+int             kmusage();
+void            pgref_inc(uint pa);
+void            pgref_dec(uint pa);
+uint            pgref(uint pa);
 
 // kbd.c
 void            kbdintr(void);

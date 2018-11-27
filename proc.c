@@ -232,6 +232,7 @@ void
 exit(void)
 {
   struct proc *curproc = myproc();
+//  procinfo(curproc->pid);
   struct proc *p;
   int fd;
 
@@ -550,15 +551,19 @@ procinfo(int pid)
           "name=%s\t"
           "sz=0x%x\t"
           "ssz=0x%x\t"
+          "hbtm=0x%x\t"
           "stack_top=0x%x\t"
-          "stack_btm=0x%x\n",
+          "stack_btm=0x%x\t"
+          "kmfree=%d\n",
           p->pid,
           state,
           p->name,
           p->sz,
           p->ssz,
+          p->hbtm,
           KERNBASE - PGSIZE,
-          KERNBASE - PGSIZE - p->ssz
+          KERNBASE - PGSIZE - p->ssz,
+          kmusage()
   );
   return pid;
 }
