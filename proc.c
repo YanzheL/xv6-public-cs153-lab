@@ -233,10 +233,9 @@ void
 exit(void)
 {
   struct proc *curproc = myproc();
-  procinfo(curproc->pid);
+//  procinfo(curproc->pid);
   struct proc *p;
   int fd;
-//  cprintf("exit start\n");
 
   if(curproc == initproc)
     panic("init exiting");
@@ -270,7 +269,6 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
-//  cprintf("exit end\n");
   sched();
   panic("zombie exit");
 }
