@@ -344,6 +344,7 @@ copyuvm(pde_t *pgdir, uint sz, uint ssz)
     pa = PTE_ADDR(*pte);
     if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
       goto bad;
+    // Increase page reference count
     pgref_inc(pa);
   }
 
@@ -401,18 +402,16 @@ int
 pgfault()
 {
   static char *errmsgs[] = {
-      "NO_FREE_SPACE",
-      "EXC_BAD_ACCESS",
-      "ALLOCUVM_ERROR",
-      "COW_KALLOC_ERROR",
-      "COW_MAPPING_ERROR"
+    "NO_FREE_SPACE",
+    "EXC_BAD_ACCESS",
+    "ALLOCUVM_ERROR",
+    "COW_KALLOC_ERROR"
   };
   char *errmsg;
 
   struct proc *curproc = myproc();
   uint addr = rcr2();
   uint pgdown = PGROUNDDOWN(addr);
-  uint szup = PGROUNDUP(curproc->sz);
   uint stack_btm = KERNBASE - PGSIZE - (curproc->ssz);
   pte_t *pte = walkpgdir(curproc->pgdir, (void *) addr, 0);
 
@@ -431,15 +430,13 @@ pgfault()
     *pte = V2P(mem) | PTE_W | PTE_FLAGS(*pte);
     goto done;
   }
-
   // Check current addr belongs to unallocated area, and do not violate heap space
-  if(stack_btm == szup) {
+  if(stack_btm == PGROUNDUP(curproc->sz)) {
     errmsg = errmsgs[0];
     goto bad;
   }
-
+  // lower_bound = min(stack_btm - PGSIZE, curproc->tf->esp)
   uint lower_bound = stack_btm - PGSIZE <= curproc->tf->esp ? stack_btm - PGSIZE : curproc->tf->esp;
-
   // Check current addr is a stack allocation request
   if(addr < lower_bound || addr >= KERNBASE - PGSIZE) {
     errmsg = errmsgs[1];
@@ -450,6 +447,7 @@ pgfault()
     errmsg = errmsgs[2];
     goto bad;
   }
+  // Increase curproc's stack size with new allocated pages
   curproc->ssz += stack_btm - pgdown;
 
   done:
