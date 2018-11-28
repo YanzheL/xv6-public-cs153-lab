@@ -310,43 +310,45 @@ clearpteu(pde_t *pgdir, char *uva)
   *pte &= ~PTE_U;
 }
 
+// Copy pages between start and stop address from src pde to dst pde
+static inline int
+copypages(pde_t *src, pde_t *dst, uint start, uint stop)
+{
+  pte_t *pte;
+  uint pa, i;
+  for (i = start; i < stop; i += PGSIZE) {
+    if((pte = walkpgdir(src, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    *pte &= (~PTE_W);
+    pa = PTE_ADDR(*pte);
+    if(mappages(dst, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
+      goto bad;
+    // Increase page reference count
+    pgref_inc(pa);
+  }
+  return 0;
+
+  bad:
+  return -1;
+}
+
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t *
 copyuvm(pde_t *pgdir, uint sz, uint ssz)
 {
   pde_t *d;
-  pte_t *pte;
-  uint pa, i;
 
   if((d = setupkvm()) == 0)
     return 0;
   // Map code && heap
-  for (i = 0; i < sz; i += PGSIZE) {
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    *pte &= (~PTE_W);
-    pa = PTE_ADDR(*pte);
-    if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
-      goto bad;
-    // Increase page reference count
-    pgref_inc(pa);
-  }
+  if(copypages(pgdir, d, 0, sz) < 0)
+    goto bad;
   // Map stack
-  for (i = KERNBASE - PGSIZE - ssz; i < KERNBASE - PGSIZE; i += PGSIZE) {
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm2: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm2: page not present");
-    *pte &= ~PTE_W;
-    pa = PTE_ADDR(*pte);
-    if(mappages(d, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
-      goto bad;
-    // Increase page reference count
-    pgref_inc(pa);
-  }
+  if(copypages(pgdir, d, KERNBASE - PGSIZE - ssz, KERNBASE - PGSIZE) < 0)
+    goto bad;
 
   lcr3(V2P(pgdir));
   return d;
