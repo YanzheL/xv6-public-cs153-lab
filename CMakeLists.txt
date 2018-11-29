@@ -88,6 +88,8 @@ add_executable(
     syscall.h
     sysfile.c
     sysproc.c
+    shm_cnt.c
+    shm.c
     toc.ftr
     toc.hdr
     trap.c
@@ -101,6 +103,7 @@ add_executable(
     user.h
     usertests.c
     usys.S
+    uspinlock.c
     vectors.pl
     vm.c
     wc.c
