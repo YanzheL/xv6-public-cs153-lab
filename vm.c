@@ -318,20 +318,17 @@ copypages(pde_t *src, pde_t *dst, uint start, uint stop)
   uint pa, i;
   for (i = start; i < stop; i += PGSIZE) {
     if((pte = walkpgdir(src, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
+      panic("copypages: pte should exist");
     if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
+      panic("copypages: page not present");
     *pte &= (~PTE_W);
     pa = PTE_ADDR(*pte);
     if(mappages(dst, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
-      goto bad;
+      return -1;
     // Increase page reference count
     pgref_inc(pa);
   }
   return 0;
-
-  bad:
-  return -1;
 }
 
 // Given a parent process's page table, create a copy
