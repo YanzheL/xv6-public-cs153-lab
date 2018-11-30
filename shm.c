@@ -33,13 +33,12 @@ void shminit()
 
 int shm_open(int id, char **pointer)
 {
-  acquire(&shm_table.lock);
   struct shm_page *p;
   struct shm_page *np = 0;
   struct shm_page *end = shm_table.shm_pages + 64;
   struct proc *curproc = myproc();
   char *mem;
-
+  acquire(&shm_table.lock);
   for (p = shm_table.shm_pages; p < end; ++p) {
     if(p->id == 0)
       np = p; // Find available slot in same loop
@@ -84,10 +83,9 @@ int shm_open(int id, char **pointer)
 
 int shm_close(int id)
 {
-  acquire(&shm_table.lock);
   struct shm_page *p;
   struct shm_page *end = shm_table.shm_pages + 64;
-
+  acquire(&shm_table.lock);
   for (p = shm_table.shm_pages; p < end; ++p) {
     if(p->id == id)
       break;
