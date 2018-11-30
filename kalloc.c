@@ -11,7 +11,7 @@
 
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
-                   // defined by the kernel linker script in kernel.ld
+// defined by the kernel linker script in kernel.ld
 
 struct run {
   struct run *next;
@@ -30,26 +30,23 @@ struct {
 // 2. main() calls kinit2() with the rest of the physical pages
 // after installing a full page table that maps them on all cores.
 void
-kinit1(void *vstart, void *vend)
-{
+kinit1(void *vstart, void *vend) {
   initlock(&kmem.lock, "kmem");
   kmem.use_lock = 0;
   freerange(vstart, vend);
 }
 
 void
-kinit2(void *vstart, void *vend)
-{
+kinit2(void *vstart, void *vend) {
   freerange(vstart, vend);
   kmem.use_lock = 1;
 }
 
 void
-freerange(void *vstart, void *vend)
-{
+freerange(void *vstart, void *vend) {
   char *p;
-  p = (char*)PGROUNDUP((uint)vstart);
-  for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
+  p = (char *) PGROUNDUP((uint) vstart);
+  for (; p + PGSIZE <= (char *) vend; p += PGSIZE)
     kfree(p);
 }
 //PAGEBREAK: 21
@@ -58,55 +55,52 @@ freerange(void *vstart, void *vend)
 // call to kalloc().  (The exception is when
 // initializing the allocator; see kinit above.)
 void
-kfree(char *v)
-{
+kfree(char *v) {
   struct run *r;
 
-  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+  if ((uint) v%PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     acquire(&kmem.lock);
-  r = (struct run*)v;
-  if(kmem.pgrefs[V2P(r) >> PGSHIFT] <= 1) {
+  r = (struct run *) v;
+  if (kmem.pgrefs[V2P(r) >> PGSHIFT] <= 1) {
     // Fill with junk to catch dangling refs.
     memset(v, 1, PGSIZE);
     r->next = kmem.freelist;
     kmem.freelist = r;
   } else
     --kmem.pgrefs[V2P(r) >> PGSHIFT];
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     release(&kmem.lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
-char*
-kalloc(void)
-{
+char *
+kalloc(void) {
   struct run *r;
 
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r) {
+  if (r) {
     kmem.freelist = r->next;
     kmem.pgrefs[V2P(r) >> PGSHIFT] = 1;
   }
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     release(&kmem.lock);
-  return (char*)r;
+  return (char *) r;
 }
 
 // return current length of freelist
 int
-kmusage()
-{
+kmusage() {
   int ct = 0;
   struct run *head, *r;
 
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     acquire(&kmem.lock);
   head = kmem.freelist;
   r = head;
@@ -114,41 +108,38 @@ kmusage()
     ++ct;
     r = r->next;
   }
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     release(&kmem.lock);
   return ct;
 }
 
 // pgrefs modifiers, can only be used outside of kalloc.c
 void
-pgref_inc(uint pa)
-{
-  if(pa < (uint) V2P(end) || pa >= PHYSTOP)
+pgref_inc(uint pa) {
+  if (pa < (uint) V2P(end) || pa >= PHYSTOP)
     panic("pgref_inc(): invalid pa");
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     acquire(&kmem.lock);
   ++kmem.pgrefs[pa >> PGSHIFT];
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     release(&kmem.lock);
 }
 
 void
-pgref_dec(uint pa)
-{
-  if(pa < (uint) V2P(end) || pa >= PHYSTOP)
+pgref_dec(uint pa) {
+  if (pa < (uint) V2P(end) || pa >= PHYSTOP)
     panic("pgref_inc(): invalid pa");
 
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     acquire(&kmem.lock);
   --kmem.pgrefs[pa >> PGSHIFT];
-  if(kmem.use_lock)
+  if (kmem.use_lock)
     release(&kmem.lock);
 }
 
 uint
-pgref(uint pa)
-{
-  if(pa < (uint) V2P(end) || pa >= PHYSTOP)
+pgref(uint pa) {
+  if (pa < (uint) V2P(end) || pa >= PHYSTOP)
     panic("pgref_inc(): invalid pa");
   return kmem.pgrefs[pa >> PGSHIFT];
 }

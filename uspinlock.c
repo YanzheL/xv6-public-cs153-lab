@@ -3,11 +3,9 @@
 #include "x86.h"
 
 void
-uacquire(struct uspinlock *lk)
-{
+uacquire(struct uspinlock *lk) {
   // The xchg is atomic.
-  while(xchg(&lk->locked, 1) != 0)
-    ;
+  while (xchg(&lk->locked, 1)!=0);
 
   // Tell the C compiler and the processor to not move loads or stores
   // past this point, to ensure that the critical section's memory
@@ -15,7 +13,7 @@ uacquire(struct uspinlock *lk)
   __sync_synchronize();
 }
 
-void urelease (struct uspinlock *lk) {
+void urelease(struct uspinlock *lk) {
   __sync_synchronize();
 
   // Release the lock, equivalent to lk->locked = 0.

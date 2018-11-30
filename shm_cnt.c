@@ -3,14 +3,12 @@
 #include "user.h"
 #include "uspinlock.h"
 
-struct shm_cnt
-{
+struct shm_cnt {
   struct uspinlock lock;
   int cnt;
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   int pid;
   int i = 0;
   struct shm_cnt *counter;
@@ -30,11 +28,11 @@ int main(int argc, char *argv[])
     urelease(&(counter->lock));
 
 //print something because we are curious and to give a chance to switch process
-    if(i % 1000 == 0)
+    if (i%1000==0)
       printf(1, "Counter in %s is %d at address %x\n", pid ? "Parent" : "Child", counter->cnt, counter);
   }
 
-  if(pid) {
+  if (pid) {
     printf(1, "Counter in parent is %d\n", counter->cnt);
     wait(0);
   } else

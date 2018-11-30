@@ -1,7 +1,7 @@
 
 
 struct uspinlock {
-uint locked;
+  uint locked;
 };
 
 void uacquire(struct uspinlock *lock);

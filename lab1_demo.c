@@ -26,7 +26,7 @@ lab1_demo() {
   for (n = 0; n < N; ++n) {
     printf(1, "Process[%d] begin fork loop...\n", getpid());
     int pid = fork();
-    if (pid == 0) {
+    if (pid==0) {
       // use the index of current child process's pid in pids to test whether exit status return properly.
       // we can get their exit status later when calling waitpid().
       worker(n);
@@ -47,7 +47,7 @@ lab1_demo() {
     // exit status should always equal to current index n.
     printf(1,
            "Waited, target pid = %d, return pid = %d, exit status = %d, n = %d, test passed = %d\n",
-           pid, wtpid, status, n, (pid == wtpid) && (status == n)
+           pid, wtpid, status, n, (pid==wtpid) && (status==n)
     );
   }
 }

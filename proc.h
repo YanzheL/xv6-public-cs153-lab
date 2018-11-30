@@ -51,15 +51,15 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 //};
 
 struct timestat {
-    uint birthticks;
-    uint runticks;
-    uint sleepticks;
-    uint pendingticks;
-    uint beginrun;
-    uint lastrun;
-    uint beginsleep;
-    uint beginpending;
-    uint dieticks;
+  uint birthticks;
+  uint runticks;
+  uint sleepticks;
+  uint pendingticks;
+  uint beginrun;
+  uint lastrun;
+  uint beginsleep;
+  uint beginpending;
+  uint dieticks;
 };
 
 //struct donator {
@@ -74,13 +74,13 @@ struct timestat {
 //};
 
 struct donator {
-    struct proc *p;
-    int priority;
+  struct proc *p;
+  int priority;
 };
 
 struct donation {
-    struct donator donators[MAXDONATION];
-    int total;
+  struct donator donators[MAXDONATION];
+  int total;
 };
 
 // Per-process state
@@ -89,7 +89,7 @@ struct proc {
   uint ssz;                    // Size of process stack (bytes), always aligned to PGSIZE
   uint shmtop;                 // Top of shared memory region
   uint hbtm;                   // Bottom of process heap (bytes)
-  pde_t* pgdir;                // Page table
+  pde_t *pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
   int pid;                     // Process ID

@@ -43,13 +43,12 @@ void b2_worker(void) {
   exit(0);
 }
 
-
 void test_bouns2(void) {
   printf(1, "--------------------  before fork  --------------------\n");
   procdump();
   int j, k;
   int pid = fork();
-  if(pid) {
+  if (pid) {
     for (j = 0; j < 1000; j++) {
       for (k = 0; k < 10000; k++) {
         asm("nop");
@@ -86,13 +85,13 @@ void test_bouns3(void) {
   setpriority(0);
   int i, pr;
   for (i = 0; i < N; ++i) {
-    pr = (MAXPRIORITY - i * 10);
+    pr = (MAXPRIORITY - i*10);
     pr = pr >= 0 ? pr : -pr;
     pr %= MAXPRIORITY;
-    if(pr == 0)
+    if (pr==0)
       pr = 1;
     int pid = fork();
-    if(pid != 0) {
+    if (pid!=0) {
       continue;
     } else {
       b3_worker(pr);
@@ -100,18 +99,18 @@ void test_bouns3(void) {
   }
 
 //  printf(1, "--------------------   begin waiting for child   --------------------\n");
-  while (wait(0) != -1);
+  while (wait(0)!=-1);
   procdump();
 //  printf(1, "--------------------     cleaned all child       --------------------\n");
 //  exit(0);
 }
 
 int main(int argc, char *argv[]) {
-  if(atoi(argv[1]) == 1)
+  if (atoi(argv[1])==1)
     test_bouns3();
-  else if(atoi(argv[1]) == 2)
+  else if (atoi(argv[1])==2)
     test_bouns2();
-  else if(atoi(argv[1]) == 3)
+  else if (atoi(argv[1])==3)
     test_bouns3();
   else
     printf(1,

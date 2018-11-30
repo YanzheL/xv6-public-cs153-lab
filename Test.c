@@ -9,11 +9,11 @@ int main(int argc, char *argv[]) {
 
   printf(1, "\n This program tests the correctness of your lab#1\n");
 
-  if (atoi(argv[1]) == 1)
+  if (atoi(argv[1])==1)
     exitWait();
-  else if (atoi(argv[1]) == 2)
+  else if (atoi(argv[1])==2)
     waitPid();
-  else if (atoi(argv[1]) == 3)
+  else if (atoi(argv[1])==3)
     PScheduler();
   else
     printf(1,
@@ -22,7 +22,6 @@ int main(int argc, char *argv[]) {
   // End of test
   exit(0);
 }
-
 
 int exitWait(void) {
   int pid, ret_pid, exit_status;
@@ -33,8 +32,8 @@ int exitWait(void) {
 
   for (i = 0; i < 2; i++) {
     pid = fork();
-    if (pid == 0) { // only the child executed this code
-      if (i == 0) {
+    if (pid==0) { // only the child executed this code
+      if (i==0) {
         printf(1, "\nThis is child with PID# %d and I will exit with status %d\n", getpid(), 0);
         exit(0);
       } else {
@@ -65,7 +64,7 @@ int waitPid(void) {
   for (i = 0; i < 5; i++) {
     pid_a[i] = fork();
 
-    if (pid_a[i] == 0) { // only the child executed this code
+    if (pid_a[i]==0) { // only the child executed this code
       printf(1, "\n The is child with PID# %d and I will exit with status %d\n", getpid(), 0);
       exit(0);
     }
@@ -95,7 +94,6 @@ int waitPid(void) {
   return 0;
 }
 
-
 int PScheduler(void) {
 
   // use this part to test the priority scheduler. Assuming that the priorities range between range between 0 to 63
@@ -113,15 +111,15 @@ int PScheduler(void) {
     pid = fork();
     if (pid > 0) {
       continue;
-    } else if (pid == 0) {
+    } else if (pid==0) {
 //		printf(1, "\n Hello! this is child# %d and I will change my priority to %d \n",getpid(),60-20*i);
-      setpriority(60 - 20 * i);
+      setpriority(60 - 20*i);
       for (j = 0; j < 50000; j++) {
         for (k = 0; k < 10000; k++) {
           asm("nop");
         }
       }
-      printf(1, "\n child# %d with priority %d has finished! \n", getpid(), 60 - 20 * i);
+      printf(1, "\n child# %d with priority %d has finished! \n", getpid(), 60 - 20*i);
       exit(0);
     } else {
       printf(2, " \n Error \n");

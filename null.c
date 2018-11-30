@@ -2,14 +2,13 @@
 #include "stat.h"
 #include "user.h"
 
-int main(int argc, char *argv[])
-{
-int *i = 0;
+int main(int argc, char *argv[]) {
+  int *i = 0;
 
-(*i)++;
+  (*i)++;
 
-printf(1,"Hi %d",*i);
+  printf(1, "Hi %d", *i);
 
-return 1;
+  return 1;
 }
 
