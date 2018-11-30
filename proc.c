@@ -861,9 +861,9 @@ procinfo(int pid) {
     state = "???\n";
 
   uint turnaround = p->tmstat.lastrun - p->tmstat.birthticks + 1;
-  cprintf("pid=%d, "
+  cprintf(
+          "%s[%d]\t"
           "state=%s\t"
-          "name=%s\t"
           "idx=%d\t"
           "priority=%d\t"
           "donations=%d\t"
@@ -878,9 +878,9 @@ procinfo(int pid) {
           "stack_top=0x%x\t"
           "stack_btm=0x%x\t"
           "kmfree=%d\n",
+          p->name,
           p->pid,
           state,
-          p->name,
           p->pidx,
           p->priority,
           p->donations.total,
@@ -889,9 +889,6 @@ procinfo(int pid) {
           p->tmstat.sleepticks,
           p->tmstat.pendingticks,
           turnaround,
-          p->pid,
-          state,
-          p->name,
           p->sz,
           p->ssz,
           p->hbtm,
