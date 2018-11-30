@@ -40,7 +40,7 @@ struct proc {
   uint ssz;                    // Size of process stack (bytes), always aligned to PGSIZE
   uint shmtop;                 // Top of shared memory region
   uint hbtm;                   // Bottom of process heap (bytes)
-  pde_t* pgdir;                // Page table
+  pde_t *pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
   int pid;                     // Process ID

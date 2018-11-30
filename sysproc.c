@@ -11,10 +11,10 @@ int sys_shm_open(void) {
   int id;
   char **pointer;
 
-  if(argint(0, &id) < 0)
+  if (argint(0, &id) < 0)
     return -1;
 
-  if(argptr(1, (char **) (&pointer),4)<0)
+  if (argptr(1, (char **) (&pointer), 4) < 0)
     return -1;
   return shm_open(id, pointer);
 }
@@ -22,99 +22,88 @@ int sys_shm_open(void) {
 int sys_shm_close(void) {
   int id;
 
-  if(argint(0, &id) < 0)
+  if (argint(0, &id) < 0)
     return -1;
 
-  
   return shm_close(id);
 }
 
 int
-sys_fork(void)
-{
+sys_fork(void) {
   return fork();
 }
 
 int
-sys_exit(void)
-{
+sys_exit(void) {
   exit();
   return 0;  // not reached
 }
 
 int
-sys_wait(void)
-{
+sys_wait(void) {
   return wait();
 }
 
 int
-sys_kill(void)
-{
+sys_kill(void) {
   int pid;
 
-  if(argint(0, &pid) < 0)
+  if (argint(0, &pid) < 0)
     return -1;
   return kill(pid);
 }
 
 int
-sys_getpid(void)
-{
+sys_getpid(void) {
   return myproc()->pid;
 }
 
 int
-sys_sbrk(void)
-{
+sys_sbrk(void) {
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  if(growproc(n) < 0)
+  if (growproc(n) < 0)
     return -1;
   return addr;
 }
 
-int sys_memdump(void)
-{
+int sys_memdump(void) {
   int n;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   memdump((uint) n);
   return 0;
 }
 
 int
-sys_procdump()
-{
+sys_procdump() {
   procdump();
   return 0;
 }
 
 int
-sys_procinfo()
-{
+sys_procinfo() {
   int n;
-  argint(0,&n);
+  argint(0, &n);
   return procinfo(n);
 }
 
 int
-sys_sleep(void)
-{
+sys_sleep(void) {
   int n;
   uint ticks0;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(myproc()->killed){
+  while (ticks - ticks0 < n) {
+    if (myproc()->killed) {
       release(&tickslock);
       return -1;
     }
@@ -127,8 +116,7 @@ sys_sleep(void)
 // return how many clock tick interrupts have occurred
 // since start.
 int
-sys_uptime(void)
-{
+sys_uptime(void) {
   uint xticks;
 
   acquire(&tickslock);

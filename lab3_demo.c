@@ -5,8 +5,7 @@
 #include "types.h"
 #include "user.h"
 
-int test1()
-{
+int test1() {
   const int n = 123456;
   const int h_size = 4321;
   int s[n];
@@ -23,8 +22,7 @@ int test1()
   return 0;
 }
 
-int test2()
-{
+int test2() {
   uint *bad_pointer = (uint *) 0x7fff0000;
   printf(1, "Trying to write to illegal address at 0x%p, this should throw a exception.\n", bad_pointer);
   *bad_pointer = 0xFFFFFFFF;
@@ -32,8 +30,7 @@ int test2()
   return 0;
 }
 
-int test3()
-{
+int test3() {
   const int n = 1970;
   const int h_size = 1120;
   int s[n];
@@ -51,13 +48,12 @@ int test3()
   return 0;
 }
 
-int main(int argc, char *argv[])
-{
-  if(atoi(argv[1]) == 1)
+int main(int argc, char *argv[]) {
+  if (atoi(argv[1])==1)
     test1();
-  else if(atoi(argv[1]) == 2)
+  else if (atoi(argv[1])==2)
     test2();
-  else if(atoi(argv[1]) == 3)
+  else if (atoi(argv[1])==3)
     test3();
   else
     printf(1,

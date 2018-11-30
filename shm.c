@@ -7,19 +7,16 @@
 #include "proc.h"
 #include "spinlock.h"
 
-struct
-{
+struct {
   struct spinlock lock;
-  struct shm_page
-  {
+  struct shm_page {
     uint id;
     char *frame;
     int refcnt;
   } shm_pages[64];
 } shm_table;
 
-void shminit()
-{
+void shminit() {
   int i;
   initlock(&(shm_table.lock), "SHM lock");
   acquire(&(shm_table.lock));
@@ -31,8 +28,7 @@ void shminit()
   release(&(shm_table.lock));
 }
 
-int shm_open(int id, char **pointer)
-{
+int shm_open(int id, char **pointer) {
   struct shm_page *p;
   struct shm_page *np = 0;
   struct shm_page *end = shm_table.shm_pages + 64;
@@ -40,18 +36,18 @@ int shm_open(int id, char **pointer)
   char *mem;
   acquire(&shm_table.lock);
   for (p = shm_table.shm_pages; p < end; ++p) {
-    if(p->id == 0)
+    if (p->id==0)
       np = p; // Find available slot in same loop
-    if(p->id == id)
+    if (p->id==id)
       break;
   }
-  if(p == end) { // Not found
-    if(np == 0)
+  if (p==end) { // Not found
+    if (np==0)
       goto bad;
-    if((mem = kalloc()) == 0)
+    if ((mem = kalloc())==0)
       goto bad;
     memset(mem, 0, PGSIZE);
-    if(mappages(curproc->pgdir, (void *) curproc->shmtop, PGSIZE, V2P(mem), PTE_U | PTE_W) < 0) {
+    if (mappages(curproc->pgdir, (void *) curproc->shmtop, PGSIZE, V2P(mem), PTE_U | PTE_W) < 0) {
       kfree(mem);
       goto bad;
     }
@@ -63,7 +59,7 @@ int shm_open(int id, char **pointer)
     curproc->shmtop += PGSIZE;
   } else { // Found
     mem = p->frame;
-    if(mappages(curproc->pgdir, (void *) curproc->shmtop, PGSIZE, V2P(mem), PTE_U | PTE_W) < 0)
+    if (mappages(curproc->pgdir, (void *) curproc->shmtop, PGSIZE, V2P(mem), PTE_U | PTE_W) < 0)
       goto bad;
     pgref_inc(V2P(mem));
     *pointer = (char *) curproc->shmtop;
@@ -81,19 +77,18 @@ int shm_open(int id, char **pointer)
   return -1;
 }
 
-int shm_close(int id)
-{
+int shm_close(int id) {
   struct shm_page *p;
   struct shm_page *end = shm_table.shm_pages + 64;
   acquire(&shm_table.lock);
   for (p = shm_table.shm_pages; p < end; ++p) {
-    if(p->id == id)
+    if (p->id==id)
       break;
   }
-  if(p == end) // Not found
+  if (p==end) // Not found
     goto bad;
 
-  if(p->refcnt <= 1) {
+  if (p->refcnt <= 1) {
     p->id = 0;
     kfree(p->frame);
     p->frame = 0;
