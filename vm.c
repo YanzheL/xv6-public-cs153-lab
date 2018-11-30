@@ -298,6 +298,16 @@ clearpteu(pde_t *pgdir, char *uva) {
   *pte &= ~PTE_U;
 }
 
+void
+clearptep(pde_t *pgdir, char *uva) {
+  pte_t *pte;
+
+  pte = walkpgdir(pgdir, uva, 0);
+  if (pte==0)
+    panic("clearpteu");
+  *pte &= ~PTE_P;
+}
+
 // Copy pages between start and stop address from src pde to dst pde
 static inline int
 copypages(pde_t *src, pde_t *dst, uint start, uint stop, int writable) {
