@@ -31,7 +31,7 @@ void shminit() {
 int shm_open(int id, char **pointer) {
   struct shm_page *p;
   struct shm_page *np = 0;
-  struct shm_page *end = shm_table.shm_pages + 64;
+  struct shm_page *end = &shm_table.shm_pages[NELEM(shm_table.shm_pages)];
   struct proc *curproc = myproc();
   char *mem;
   acquire(&shm_table.lock);
@@ -78,7 +78,7 @@ int shm_open(int id, char **pointer) {
 
 int shm_close(int id) {
   struct shm_page *p;
-  struct shm_page *end = shm_table.shm_pages + 64;
+  struct shm_page *end = &shm_table.shm_pages[NELEM(shm_table.shm_pages)];
   acquire(&shm_table.lock);
   for (p = shm_table.shm_pages; p < end; ++p) {
     if (p->id==id)
