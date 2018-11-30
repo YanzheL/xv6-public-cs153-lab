@@ -21,7 +21,7 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
-  uint pgrefs[PHYSTOP >> PGSHIFT];
+  int pgrefs[PHYSTOP >> PGSHIFT];
 } kmem;
 
 // Initialization happens in two phases.
@@ -137,7 +137,7 @@ pgref_dec(uint pa) {
     release(&kmem.lock);
 }
 
-uint
+int
 pgref(uint pa) {
   if (pa < (uint) V2P(end) || pa >= PHYSTOP)
     panic("pgref_inc(): invalid pa");

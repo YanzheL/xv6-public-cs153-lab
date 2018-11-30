@@ -17,3 +17,4 @@ mkfs
 .idea
 cmake-build-debug
 .DS_Store
+.vscode

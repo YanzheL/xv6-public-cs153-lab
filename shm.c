@@ -31,7 +31,7 @@ void shminit() {
 int shm_open(int id, char **pointer) {
   struct shm_page *p;
   struct shm_page *np = 0;
-  struct shm_page *end = shm_table.shm_pages + 64;
+  struct shm_page *end = &shm_table.shm_pages[NELEM(shm_table.shm_pages)];
   struct proc *curproc = myproc();
   char *mem;
   acquire(&shm_table.lock);
@@ -51,7 +51,6 @@ int shm_open(int id, char **pointer) {
       kfree(mem);
       goto bad;
     }
-    pgref_inc(V2P(mem));
     *pointer = (char *) curproc->shmtop;
     np->id = id;
     np->frame = mem;
@@ -79,7 +78,7 @@ int shm_open(int id, char **pointer) {
 
 int shm_close(int id) {
   struct shm_page *p;
-  struct shm_page *end = shm_table.shm_pages + 64;
+  struct shm_page *end = &shm_table.shm_pages[NELEM(shm_table.shm_pages)];
   acquire(&shm_table.lock);
   for (p = shm_table.shm_pages; p < end; ++p) {
     if (p->id==id)
@@ -90,7 +89,9 @@ int shm_close(int id) {
 
   if (p->refcnt <= 1) {
     p->id = 0;
-    kfree(p->frame);
+    // No need to call kfree(p->frame) here
+    // because when curproc exits, and is cleaned up by parent, all pages will be passed to kfree() through deallocuvm()
+    // so the corresponding physical page's refcnt will be decreased
     p->frame = 0;
   } else
     --p->refcnt;
