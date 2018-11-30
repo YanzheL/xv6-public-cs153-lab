@@ -113,4 +113,5 @@ add_executable(
         lab2_demo.c
         lab3_demo.c
         lab3.c
+        Test.c
 )

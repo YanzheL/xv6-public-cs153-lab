@@ -99,7 +99,7 @@ int PScheduler(void) {
   // use this part to test the priority scheduler. Assuming that the priorities range between range between 0 to 63
   // 0 is the highest priority. All processes have a default priority of 20
 
-  int pid, ret_pid, exit_status;
+  int pid, exit_status;
   int i, j, k;
 
   printf(1, "\n  Step 2: testing the priority scheduler and setpriority(int priority)) systema call:\n");
@@ -129,7 +129,7 @@ int PScheduler(void) {
 
   if (pid > 0) {
     for (i = 0; i < 3; i++) {
-      ret_pid = wait(&exit_status);
+      wait(&exit_status);
       //printf(1,"\n This is the parent: child with PID# %d has finished with status %d \n",ret_pid,exit_status);
     }
     printf(1, "\n if processes with highest priority finished first then its correct \n");
