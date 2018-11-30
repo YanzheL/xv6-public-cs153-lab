@@ -35,7 +35,7 @@ printint(int fd, int xx, int base, int sign, int hex)
 
 // Print to the given fd. Only understands %d, %x, %p, %s.
 void
-printf(int fd, char *fmt, ...)
+printf(int fd, const char *fmt, ...)
 {
   char *s;
   int c, i, state;

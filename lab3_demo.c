@@ -66,5 +66,5 @@ int main(int argc, char *argv[])
            "test 2: bad_pointer detection, should throw EXC_BAD_ACCESS\n"
            "test 3: stack allocation with memory dump\n"
     );
-  exit();
+  exit(0);
 }

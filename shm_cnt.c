@@ -36,12 +36,12 @@ int main(int argc, char *argv[])
 
   if(pid) {
     printf(1, "Counter in parent is %d\n", counter->cnt);
-    wait();
+    wait(0);
   } else
     printf(1, "Counter in child is %d\n\n", counter->cnt);
 
 //shm_close: first process will just detach, next one will free up the shm_table entry (but for now not the page)
   shm_close(1);
-  exit();
+  exit(0);
   return 0;
 }

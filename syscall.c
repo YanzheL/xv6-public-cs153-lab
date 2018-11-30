@@ -85,6 +85,7 @@ argstr(int n, char **pp)
   return fetchstr(addr, pp);
 }
 
+extern int sys_setpriority(void);
 extern int sys_chdir(void);
 extern int sys_close(void);
 extern int sys_dup(void);
@@ -104,9 +105,13 @@ extern int sys_sbrk(void);
 extern int sys_sleep(void);
 extern int sys_unlink(void);
 extern int sys_wait(void);
+extern int sys_donate(int pid);
+extern int sys_undonate(int pid);
+extern int sys_waitpid(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
-
+extern int sys_procdump(void);
+extern int sys_procinfo(void);
 extern int sys_shm_open(void);
 extern int sys_shm_close(void);
 extern int sys_procdump(void);
@@ -114,32 +119,37 @@ extern int sys_memdump(void);
 extern int sys_procinfo(void);
 
 static int (*syscalls[])(void) = {
-[SYS_fork]    sys_fork,
-[SYS_exit]    sys_exit,
-[SYS_wait]    sys_wait,
-[SYS_pipe]    sys_pipe,
-[SYS_read]    sys_read,
-[SYS_kill]    sys_kill,
-[SYS_exec]    sys_exec,
-[SYS_fstat]   sys_fstat,
-[SYS_chdir]   sys_chdir,
-[SYS_dup]     sys_dup,
-[SYS_getpid]  sys_getpid,
-[SYS_sbrk]    sys_sbrk,
-[SYS_sleep]   sys_sleep,
-[SYS_uptime]  sys_uptime,
-[SYS_open]    sys_open,
-[SYS_write]   sys_write,
-[SYS_mknod]   sys_mknod,
-[SYS_unlink]  sys_unlink,
-[SYS_link]    sys_link,
-[SYS_mkdir]   sys_mkdir,
-[SYS_close]   sys_close,
-[SYS_shm_open] sys_shm_open,
-[SYS_shm_close] sys_shm_close,
-[SYS_procdump] sys_procdump,
-[SYS_memdump] sys_memdump,
-[SYS_procinfo] sys_procinfo
+    [SYS_fork]    sys_fork,
+    [SYS_exit]    sys_exit,
+    [SYS_wait]    sys_wait,
+    [SYS_waitpid] sys_waitpid,
+    [SYS_pipe]    sys_pipe,
+    [SYS_read]    sys_read,
+    [SYS_kill]    sys_kill,
+    [SYS_exec]    sys_exec,
+    [SYS_fstat]   sys_fstat,
+    [SYS_chdir]   sys_chdir,
+    [SYS_dup]     sys_dup,
+    [SYS_getpid]  sys_getpid,
+    [SYS_sbrk]    sys_sbrk,
+    [SYS_sleep]   sys_sleep,
+    [SYS_uptime]  sys_uptime,
+    [SYS_open]    sys_open,
+    [SYS_write]   sys_write,
+    [SYS_mknod]   sys_mknod,
+    [SYS_unlink]  sys_unlink,
+    [SYS_link]    sys_link,
+    [SYS_mkdir]   sys_mkdir,
+    [SYS_close]   sys_close,
+    [SYS_donate]  sys_donate,
+    [SYS_undonate]  sys_undonate,
+    [SYS_setpriority] sys_setpriority,
+    [SYS_procdump] sys_procdump,
+    [SYS_procinfo] sys_procinfo,
+    [SYS_shm_open] sys_shm_open,
+    [SYS_shm_close] sys_shm_close,
+    [SYS_procdump] sys_procdump,
+    [SYS_memdump] sys_memdump,
 };
 
 void

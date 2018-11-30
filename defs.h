@@ -9,6 +9,14 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct pheap;
+
+#define SWAP(pa, pb, T)                \
+{                                      \
+  T tp = *(pa);                        \
+  *(pa) = *(pb);                       \
+  *(pb) = tp;                          \
+}
 
 // bio.c
 void            binit(void);
@@ -108,7 +116,14 @@ int             pipewrite(struct pipe*, char*, int);
 //PAGEBREAK: 16
 // proc.c
 int             cpuid(void);
-void            exit(void);
+
+int             donate(int pid);
+
+int             undonate(int pid);
+int             setpriority(int priority);
+uint            clock();
+//struct tmspec   clock();
+void            exit(int status);
 int             fork(void);
 int             growproc(int);
 int             kill(int);
@@ -122,11 +137,12 @@ void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
-int             wait(void);
+int             wait(int *);
+int             waitpid(int, int *, int);
 void            wakeup(void*);
 void            yield(void);
 int             pgfault();
-void            memdump(uint options);
+void            memdump(uint);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -170,7 +186,7 @@ void            timerinit(void);
 void            idtinit(void);
 extern uint     ticks;
 void            tvinit(void);
-extern struct spinlock tickslock;
+extern struct   spinlock tickslock;
 
 // uart.c
 void            uartinit(void);
@@ -193,14 +209,17 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
+// pheap.c
+void            hpush(int idx, int *key, struct pheap *h);
+int             hpop(struct pheap *h);
+
 //made mappages visible (and removed static) to facilitate implementing shm
-int
-mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+int             mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 //shm.c
-void shminit(void);
-int shm_open(int id, char **pointer);
-int shm_close(int id);
+void            shminit(void);
+int             shm_open(int id, char **pointer);
+int             shm_close(int id);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

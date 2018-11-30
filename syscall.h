@@ -20,8 +20,12 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
-#define SYS_shm_open 22
-#define SYS_shm_close 23
-#define SYS_procinfo 24
-#define SYS_procdump 25
-#define SYS_memdump  26
+#define SYS_shm_open    22
+#define SYS_shm_close   23
+#define SYS_procinfo    24
+#define SYS_procdump    25
+#define SYS_memdump     26
+#define SYS_waitpid     27
+#define SYS_setpriority 28
+#define SYS_donate      29
+#define SYS_undonate    30
