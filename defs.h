@@ -71,7 +71,7 @@ void kinit2(void *, void *);
 int kmusage();
 void pgref_inc(uint pa);
 void pgref_dec(uint pa);
-uint pgref(uint pa);
+int pgref(uint pa);
 
 // kbd.c
 void kbdintr(void);
