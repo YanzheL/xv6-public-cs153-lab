@@ -66,12 +66,10 @@ int shm_open(int id, char **pointer) {
     curproc->shmtop += PGSIZE;
   }
 
-  lcr3(V2P(curproc->pgdir));
   release(&shm_table.lock);
   return 0;
 
   bad:
-  lcr3(V2P(curproc->pgdir));
   release(&shm_table.lock);
   return -1;
 }
