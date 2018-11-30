@@ -115,34 +115,34 @@ int             pipewrite(struct pipe*, char*, int);
 
 //PAGEBREAK: 16
 // proc.c
-int cpuid(void);
+int             cpuid(void);
 
-int donate(int pid);
+int             donate(int pid);
 
-int undonate(int pid);
-int setpriority(int priority);
-uint clock();
+int             undonate(int pid);
+int             setpriority(int priority);
+uint            clock();
 //struct tmspec   clock();
-void exit(int status);
-int fork(void);
-int growproc(int);
-int kill(int);
-struct cpu *mycpu(void);
-struct proc *myproc();
-void pinit(void);
-void procdump(void);
-int procinfo(int);
-void scheduler(void) __attribute__((noreturn));
-void sched(void);
-void setproc(struct proc *);
-void sleep(void *, struct spinlock *);
-void userinit(void);
-int wait(int *);
-int waitpid(int, int *, int);
-void wakeup(void *);
-void yield(void);
-int pgfault();
-void memdump(uint);
+void            exit(int status);
+int             fork(void);
+int             growproc(int);
+int             kill(int);
+struct cpu *    mycpu(void);
+struct proc *   myproc();
+void            pinit(void);
+void            procdump(void);
+int             procinfo(int);
+void            scheduler(void) __attribute__((noreturn));
+void            sched(void);
+void            setproc(struct proc *);
+void            sleep(void *, struct spinlock *);
+void            userinit(void);
+int             wait(int *);
+int             waitpid(int, int *, int);
+void            wakeup(void *);
+void            yield(void);
+int             pgfault();
+void            memdump(uint);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -211,16 +211,16 @@ void            clearpteu(pde_t *pgdir, char *uva);
 void            clearptep(pde_t *pgdir, char *uva);
 
 // pheap.c
-void hpush(int idx, int *key, struct pheap *h);
-int hpop(struct pheap *h);
+void            hpush(int idx, int *key, struct pheap *h);
+int             hpop(struct pheap *h);
 
 //made mappages visible (and removed static) to facilitate implementing shm
-int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
+int             mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 //shm.c
-void shminit(void);
-int shm_open(int id, char **pointer);
-int shm_close(int id);
+void            shminit(void);
+int             shm_open(int id, char **pointer);
+int             shm_close(int id);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
