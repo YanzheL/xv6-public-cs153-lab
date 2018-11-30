@@ -300,7 +300,7 @@ clearpteu(pde_t *pgdir, char *uva) {
 
 // Copy pages between start and stop address from src pde to dst pde
 static inline int
-copypages(pde_t *src, pde_t *dst, uint start, uint stop) {
+copypages(pde_t *src, pde_t *dst, uint start, uint stop, int writable) {
   pte_t *pte;
   uint pa, i;
   for (i = start; i < stop; i += PGSIZE) {
@@ -308,7 +308,8 @@ copypages(pde_t *src, pde_t *dst, uint start, uint stop) {
       panic("copypages: pte should exist");
     if (!(*pte & PTE_P))
       panic("copypages: page not present");
-    *pte &= (~PTE_W);
+    if (!writable)
+      *pte &= (~PTE_W);
     pa = PTE_ADDR(*pte);
     if (mappages(dst, (void *) i, PGSIZE, pa, PTE_FLAGS(*pte)) < 0)
       return -1;
@@ -327,10 +328,13 @@ copyuvm(pde_t *pgdir, struct proc *pproc) {
   if ((d = setupkvm())==0)
     return 0;
   // Map code && heap
-  if (copypages(pgdir, d, 0, pproc->sz) < 0)
+  if (copypages(pgdir, d, 0, pproc->sz, 0) < 0)
+    goto bad;
+  // Map shm region
+  if (copypages(pgdir, d, SHMBASE, pproc->shmtop, 1) < 0)
     goto bad;
   // Map stack
-  if (copypages(pgdir, d, KERNBASE - PGSIZE - pproc->ssz, KERNBASE - PGSIZE) < 0)
+  if (copypages(pgdir, d, KERNBASE - PGSIZE - pproc->ssz, KERNBASE - PGSIZE, 0) < 0)
     goto bad;
 
   lcr3(V2P(pgdir));
