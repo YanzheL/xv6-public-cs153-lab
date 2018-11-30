@@ -12,12 +12,6 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
-//struct queue {
-//    struct spinlock lock;
-////    struct proc *proc[NPROC];
-////    int size;
-//} readyq;
-
 struct hitem {
   int *key;
   int idx;
@@ -29,51 +23,11 @@ struct pheap {
   int size; // Current number of elements in max heap
 } readyq;
 
-//#define TCCR    (0x0390/4)   // Timer Current Count
-//#define GETPROCKEY(p) p->vruntime - readyq.min
-//#define GETPROCKEY(p) p->vruntime
-
 uint clock() {
 //  return ticks * 100 + (10000000 - lapic[TCCR]) / 100000;
 //  return ticks + ((10000000 - lapic[TCCR]) >= 5000000);
   return ticks;
 }
-
-//// Used in qsort()
-//int partition(struct proc **src, int low, int high) {
-//  struct proc *pv = src[low];
-//  int pivot = GETPROCKEY(pv);
-//  while (low < high) {
-//    while (low < high && GETPROCKEY(src[high]) <= pivot)--high;
-//    src[low] = src[high];
-//    while (low < high && GETPROCKEY(src[low]) >= pivot)++low;
-//    src[high] = src[low];
-//  }
-//  src[low] = pv;
-//  return low;
-//}
-//
-//// Quick sort over ready queue
-//void qsort(struct proc **arr, int low, int high) {
-//  if(low < high) {
-//    int pi = partition(arr, low, high);
-//    qsort(arr, low, pi - 1);
-//    qsort(arr, pi + 1, high);
-//  }
-//}
-//
-//void sort(struct proc *arr[], int size) {
-//  int i, j;
-//  int p1, p2;
-//  for (i = 0; i < size; ++i) {
-//    for (j = 0; j < size - 1; ++j) {
-//      p1 = GETPROCKEY(arr[j]);
-//      p2 = GETPROCKEY(arr[j + 1]);
-//      if(p1 < p2) SWAP(&arr[j], &arr[j + 1], struct proc*)
-//    }
-//  }
-//}
-
 
 static struct proc *initproc;
 
@@ -87,15 +41,6 @@ static void wakeup1(void *chan);
 
 void
 change_state(struct proc *p, enum procstate s2) {
-//  static char *states[] = {
-//      [UNUSED]    "UNUSED  ",
-//      [EMBRYO]    "EMBRYO  ",
-//      [SLEEPING]  "SLEEPING",
-//      [RUNNABLE]  "RUNNABLE",
-//      [RUNNING]   "RUNNING ",
-//      [ZOMBIE]    "ZOMBIE  "
-//  };
-//  cprintf("[%s] -> [%s]\n",states[p->state],states[s2]);
   if (!holding(&ptable.lock))
     panic("Unprotected state change");
   p->delta_exec_weighted = 1 + p->priority - p->donations.total;
@@ -124,7 +69,6 @@ change_state(struct proc *p, enum procstate s2) {
           break;
         default:
           // Nothing should reach here
-          //  cprintf("11111[%s] -> [%s]\n",states[p->state],states[s2]);
           break;
       }
       break;
@@ -135,7 +79,6 @@ change_state(struct proc *p, enum procstate s2) {
       break;
     default:
       // Nothing should reach here
-      // cprintf("22222[%s] -> [%s]\n",states[p->state],states[s2]);
       break;
   }
 
@@ -591,16 +534,6 @@ wait(int *status) {
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
 }
-
-//int
-//donate(int pid, int priority){
-//  struct proc *p;
-//  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-//    if (p->pid != pid)
-//      continue;
-//
-//  }
-//}
 
 int
 waitpid(int pid, int *status, int options) {
