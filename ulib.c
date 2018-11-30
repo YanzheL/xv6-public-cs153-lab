@@ -87,7 +87,7 @@ memmove(void *vdst, const void *vsrc, int n) {
   char *dst, *src;
 
   dst = vdst;
-  src = vsrc;
+  src = (void *) vsrc;
   while (n-- > 0)
     *dst++ = *src++;
   return vdst;
