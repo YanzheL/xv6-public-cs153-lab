@@ -337,17 +337,17 @@ copypages(pde_t *src, pde_t *dst, uint start, uint stop)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t *
-copyuvm(pde_t *pgdir, uint sz, uint ssz)
+copyuvm(pde_t *pgdir, struct proc *pproc)
 {
   pde_t *d;
 
   if((d = setupkvm()) == 0)
     return 0;
   // Map code && heap
-  if(copypages(pgdir, d, 0, sz) < 0)
+  if(copypages(pgdir, d, 0, pproc->sz) < 0)
     goto bad;
   // Map stack
-  if(copypages(pgdir, d, KERNBASE - PGSIZE - ssz, KERNBASE - PGSIZE) < 0)
+  if(copypages(pgdir, d, KERNBASE - PGSIZE - pproc->ssz, KERNBASE - PGSIZE) < 0)
     goto bad;
 
   lcr3(V2P(pgdir));
