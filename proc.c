@@ -661,7 +661,7 @@ scheduler(void) {
     sti();
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    while (p = readyq_pop()) {
+    while ((p = readyq_pop())) {
 //      acquire(&q->lock);
 //      p = q->proc[--q->size];
 //      release(&q->lock);
@@ -862,39 +862,39 @@ procinfo(int pid) {
 
   uint turnaround = p->tmstat.lastrun - p->tmstat.birthticks + 1;
   cprintf(
-          "%s[%d]\t"
-          "state=%s\t"
-          "idx=%d\t"
-          "priority=%d\t"
-          "donations=%d\t"
-          "vruntime=%d\t"
-          "runticks=%u\t"
-          "sleepticks=%u\t"
-          "pendingticks=%u\t"
-          "turnaround=%u\n"
-          "sz=0x%x\t"
-          "ssz=0x%x\t"
-          "hbtm=0x%x\t"
-          "stack_top=0x%x\t"
-          "stack_btm=0x%x\t"
-          "kmfree=%d\n",
-          p->name,
-          p->pid,
-          state,
-          p->pidx,
-          p->priority,
-          p->donations.total,
-          p->vruntime,
-          p->tmstat.runticks,
-          p->tmstat.sleepticks,
-          p->tmstat.pendingticks,
-          turnaround,
-          p->sz,
-          p->ssz,
-          p->hbtm,
-          KERNBASE - PGSIZE,
-          KERNBASE - PGSIZE - p->ssz,
-          kmusage()
+      "%s[%d]\t"
+      "state=%s\t"
+      "idx=%d\t"
+      "priority=%d\t"
+      "donations=%d\t"
+      "vruntime=%d\t"
+      "runticks=%u\t"
+      "sleepticks=%u\t"
+      "pendingticks=%u\t"
+      "turnaround=%u\n"
+      "sz=0x%x\t"
+      "ssz=0x%x\t"
+      "hbtm=0x%x\t"
+      "stack_top=0x%x\t"
+      "stack_btm=0x%x\t"
+      "kmfree=%d\n",
+      p->name,
+      p->pid,
+      state,
+      p->pidx,
+      p->priority,
+      p->donations.total,
+      p->vruntime,
+      p->tmstat.runticks,
+      p->tmstat.sleepticks,
+      p->tmstat.pendingticks,
+      turnaround,
+      p->sz,
+      p->ssz,
+      p->hbtm,
+      KERNBASE - PGSIZE,
+      KERNBASE - PGSIZE - p->ssz,
+      kmusage()
   );
   return pid;
 }
